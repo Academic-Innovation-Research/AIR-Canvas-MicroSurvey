@@ -3,7 +3,7 @@
 // Show the survey box when on dashboard page
 const showSurvey = function () {
   const { pathname } = window.location;
-  let browserHTML = '';
+  var browserHTML = '';
   if (pathname.match(/^\/courses\/\d+$/)) {
     browserHTML = '<div class="container-footnote">';
   /* 
