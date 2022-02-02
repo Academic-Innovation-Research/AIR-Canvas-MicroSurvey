@@ -75,7 +75,7 @@
   background-color: #000000;
 }
 
-.icon {
+.container-footnote .icon {
   color: #444444;
   width: .5em;
   height: .5em;
@@ -84,7 +84,7 @@
   transform: scaleY(-1);
 }
 
-.icon-home {
+.container-footnote .icon-home {
   /* Using currentColor above = `color` 
   here to change icon color: */
   color: #00549a;
@@ -98,7 +98,7 @@
   right: 18rem;
 }
 
-.hidden {
+.container-footnote .hidden {
   display: none;
   visibility: hidden;
 }
