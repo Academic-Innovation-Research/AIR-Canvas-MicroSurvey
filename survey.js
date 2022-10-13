@@ -20,7 +20,11 @@ const showSurvey = function () {
     browserHTML += window.location.pathname;
     browserHTML += `" target="new">&nbsp;&nbsp; YES &nbsp;&nbsp;</a>`;
     browserHTML += `</div>`;
-    $('body').append(browserHTML);
+
+    setTimeout(function(){
+      $('body').append(browserHTML);
+    },10000); // 10000ms = 10 seconds
+
   }
 
   // Close/hide the browser element
