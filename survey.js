@@ -1,4 +1,5 @@
-/* BEGIN FUNCTION */
+// BEGIN
+// Backwards compatible via ES5
 
 // Show the popup window on select pages page
 var popShow = function() {
@@ -8,10 +9,11 @@ var popShow = function() {
   // Either pass course path info to survey or not (1= enable, 0= disable); Used to determine which course respondents replied from.
   var popCrs = 0; 
   // Message to display inside div
-  var popMsg = "We would love your feedback!<br/>Answer 2 questions?";
+  var popMsg = "Are you finding what you are looking for?";
   // Link to survey, form, mailto, etc.
-  var surveyURL = "https://eraurctle.iad1.qualtrics.com/jfe/form/SV_22VyuADeC2CdcA6";
-  // let surveyURL = "mailto:rctle@erau.edu?subject=Faculty Assistance&body=Hello, I am looking for some guidance. Can we schedule some time to connect?";
+  var surveyURL = "mailto:rctle@erau.edu?subject=Faculty Assistance&body=Hello, I need some guidance. Can we schedule a time to connect?";
+  // Text displayed on popup button linking out
+  var popBtnTxt = "No";
   // Timeout in ms (e.g., 1000ms = 1 seconds)
   var popDelay = 1000;
   // Display popup throughout course or just dashboard (0=disable, 1=enable)
@@ -35,7 +37,7 @@ var popShow = function() {
     popHTML += "</button>";
     popHTML += "<h2><div class=\"eagleSVG\"></div></h2>";
     popHTML += "<div class=\"survey-content\" id=\"survey-content-text\"><span>"+popMsg+"</span>";
-    popHTML += "<a class=\"button\" role=\"button\" id=\"QualtricsSurvey\" href=\""+popURL+"\" target=\"new\">YES</a>";
+    popHTML += "<a class=\"button\" role=\"button\" id=\"QualtricsSurvey\" href=\""+popURL+"\" target=\"new\">"+popBtnTxt+"</a>";
     popHTML += "</div></div>";
 
     // Timer to set length of delay before popup appears, default is 1s

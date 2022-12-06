@@ -1,2 +1,2 @@
 # AIR-Canvas-MicroSurvey
- This is a theme for Canvas by Instructure that enables a popup on the Dashboard page.
+The Canvas Theme Editor permits system administrators to create and enable custom themes for their institutional LMS. This application is not a theme per se but is attached to a theme via subaccounts. It is more of a child theme that enables a popup message in the courses specified.
