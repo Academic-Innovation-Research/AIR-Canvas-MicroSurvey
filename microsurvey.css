@@ -12,7 +12,7 @@
   bottom: 1em;
   width: 14em;
   z-index: 10000;
-  padding: 20px;
+  padding: 2px;
 }
 
 /* close button */
@@ -88,7 +88,9 @@
 
 /* Add space between heading and text */
 .survey-content {
-  margin-top: 25px;
+  margin-top: 10px;
+  margin-bottom: 3px;
+  margin-left: 3px;
 }
 
 /* Add padding to button */
@@ -96,6 +98,8 @@ a.button {
   padding: 20px;
   padding-left: 10px;
   padding-right: 10px;
+  margin-left: 5px;
+  margin-right: 5px;
 }
 
 /* Encode SVG: https://yoksel.github.io/url-encoder/ */
@@ -104,7 +108,7 @@ a.button {
   font-size: 100px;
   position: absolute;
   top: -1.5rem;
-  right: 16.5rem;
+  right: 15.5rem;
   width: .5em;
   height: .5em;
   -webkit-transform: scaleY(-1);
