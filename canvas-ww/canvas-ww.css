@@ -1,0 +1,1168 @@
+/*********************************************************************/
+/***** DESIGN TOOLS CORE THEME IMPORT ********************************/
+/*********************************************************************/
+/* Import statements need to be at the top of your CSS file */
+/* For Main CSS file */
+@import url(https://designtools.ciditools.com/css/themes.css);
+/* For Mobile app CSS file */
+/*@import url(https://designtools.ciditools.com/css/app.css);*/
+/*********************************************************************/
+
+/*
+  Make the following hidden by default (override with JS)
+*/
+/* Course Status switch */
+#course_status,
+/* "Choose Home Page" button */
+#right-side .choose_home_page_link,
+/* Course Setup reminder */
+.Reminder__course-setup, .Reminder__course-setup-subttitle,
+/* "Course Setup Checklist" button (wizard overlay) */
+#right-side .wizard_popup_link,
+/* "Commons" icon / button in Canvas header */
+#context_external_tool_30926_menu_item,
+/* Syllabus from course navigation */
+/*#section-tabs .syllabus, #nav_disabled_list .navitem[aria-label="Syllabus"],*/
+/* Share to Commons button in Discussions */
+#menuTool-discussion-menu-option
+{ display: none; }
+
+/* 
+  Force the following to be hidden
+*/
+/* "EchoCenter" from course navigation */
+/*a.context_external_tool_117,*/
+/* "Share to Commons" button (Settings page) */
+#right-side .course-settings-sub-navigation-lti[href$="external_tools/30926?launch_type=course_settings_sub_navigation"],
+/* "Import from Commons" button (course home page) */
+#right-side .button-sidebar-wide[href$="external_tools/30926?launch_type=course_home_sub_navigation"],
+/* "Share to Commons" option in various dropdowns (found on Discussions, Modules, Pages, and so forth; usually the last option) */
+a.menu_tool_link[href*="/external_tools/30926"]
+{
+	display: none!important;
+}
+
+/* "The Globe" Feed Slideshow */
+#globeContent {
+	background: #f7f7f7;
+	border: 1px solid #bbbbbb;
+	padding: 20px;
+	margin-bottom:20px;
+}
+#globeContent{
+	/* Prevent accidental text selections on slider */
+	-webkit-user-select: none;
+	-khtml-user-select: none;
+	-moz-user-select: none;
+	-o-user-select: none;
+	user-select: none;
+}
+#globeContent hr {
+	border-style: solid;
+	border-color: #cccccc;
+}
+#globeContent .slide {
+	font-weight: bold;
+	display: none;
+}
+#globeContent .slide:first-child {
+	display: block;
+}
+#globeContent .slide img {
+	border: 2px solid #0087c2;
+	margin-bottom: 15px;
+}
+#globeContent .slide img:hover {
+	opacity: 0.8;
+}
+#globeContent .title {
+	display: block;
+}
+#globeContent .controls {
+	float: right;
+	margin-left: 10px;
+	margin-bottom: 10px;
+}
+#globeContent .controls i {
+	display: block;
+	float: left;
+	padding: 5px;
+	background: #e9e9e9;
+	margin-left: 2px;
+	cursor: pointer;
+}
+#globeContent .controls i:before {
+	color: #0087c2;
+}
+#globeContent .controls i:hover {
+	background: #d7d7d7;
+}
+#globeContent .logo {
+	margin: auto; max-width: 142px;
+}
+#globeContent .logo:hover {
+	opacity: 0.8;
+}
+#globeContent .logo.wide {
+	max-width: 190px;
+}
+
+/******************************************/
+/* Hide Multi Tool by Default             */
+/******************************************/
+#nav_edit_tab_id_context_external_tool_35108,
+#section-tabs a.context_external_tool_35108 {
+	display: none;
+}
+
+/******************************************/
+/* Fix the teacher-version of assignments */
+/******************************************/
+#assignment_show .description.teacher-version {
+  padding: 15px;
+  overflow-y: visible;
+  height: inherit;
+  border: none;
+  resize: vertical;
+  margin-top: 20px;
+}
+
+
+/*********************************************************************/
+/***** BEGIN DESIGN TOOLS THEME CUSTOMIZATIONS ***********************/
+/*********************************************************************/
+/* Default Colors for find/replace */
+/* Default Dark = #0A3665 */
+/* Default Medium Grey = dimgray */
+/* Default Light Grey = whitesmoke */
+/* Light Option 1 = #F8C649 */
+/* Light Option 2 = #A29061 */
+/* Dark Accent 1 = #00002E */
+
+/*********************************************************************/
+/*****    APPLE THEME   **********************************************/
+
+#kl_wrapper_3.kl_apple #kl_banner h2 {
+  background: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_apple #kl_banner #kl_banner_left .kl_mod_num {
+  color: #0A3665;
+}
+#kl_wrapper_3.kl_apple #kl_banner #kl_banner_left:before {
+  color: #fff;
+}
+#kl_wrapper_3.kl_apple #kl_banner .kl_subtitle {
+  color: #000;
+  border: 1px solid #0A3665;
+  background-color: whitesmoke;
+}
+#kl_wrapper_3.kl_apple #kl_banner #kl_description {
+  border: #0A3665 1px solid;
+}
+#kl_wrapper_3.kl_apple h3:not(.ui-state-default) {
+  border: 1px solid dimgray;
+  background: dimgray;
+  color: #fff;
+}
+#kl_wrapper_3.kl_apple h4:not(.ui-state-default), 
+#kl_wrapper_3.kl_apple h5 {
+  border: 1px solid dimgray;
+}
+#kl_wrapper_3.kl_apple #kl_navigation ul {
+  background-color: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_apple #kl_navigation li a,
+#kl_wrapper_3.kl_apple #kl_navigation li a:hover,
+#kl_wrapper_3.kl_apple #kl_navigation li a:focus,
+#kl_wrapper_3.kl_apple #kl_navigation li a:visited {
+  color: #fff;
+}
+#kl_wrapper_3.kl_apple #kl_modules {
+  border: 1px solid #0A3665;
+}
+#kl_wrapper_3.kl_apple > div > i {
+  background-color: dimgray;
+  color: #fff;
+}
+#kl_wrapper_3.kl_apple h3:not(.ui-state-default) i {
+  color: #fff;
+}
+
+/*********************************************************************/
+/*****    BASIC BAR THEME    *****************************************/
+
+#kl_wrapper_3.kl_basic_bar #kl_banner h2 {
+  background: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_basic_bar #kl_banner .kl_subtitle {
+  color: #0A3665;
+  border-color: #0A3665;
+  background-color: #fff;
+}
+#kl_wrapper_3.kl_basic_bar #kl_banner #kl_description {
+  border-color: #000;
+  background-color: #fff;
+}
+#kl_wrapper_3.kl_basic_bar h3:not(.ui-state-default) {
+  border-bottom-color: lightgray;
+}
+
+/*********************************************************************/
+/*****    BASIC COLOR BANNER NAV THEME    ****************************/
+
+#kl_wrapper_3.kl_basic_color #kl_banner,
+#kl_wrapper_3.kl_basic_color_panel_nav #kl_banner {
+    background-color: #0A3665;
+    color: #FFF;
+}
+#kl_wrapper_3.kl_basic_color #kl_banner #kl_banner_left,
+#kl_wrapper_3.kl_basic_color_panel_nav #kl_banner #kl_banner_left {
+   border-right: 3px solid #fff;
+}
+#kl_wrapper_3.kl_basic_color #kl_banner .kl_subtitle,
+#kl_wrapper_3.kl_basic_color_panel_nav #kl_banner .kl_subtitle {
+   background-color: #fff;
+   color: #0A3665;
+   border: 2px solid #0A3665;
+}
+#kl_wrapper_3.kl_basic_color #kl_banner #kl_description,
+#kl_wrapper_3.kl_basic_color_panel_nav #kl_banner #kl_description {
+   border-top: 3px solid #fff;
+}
+#kl_wrapper_3.kl_basic_color #kl_navigation ul li {
+   background-color: #0A3665;
+   color: #fff;
+}
+
+#kl_wrapper_3.kl_basic_color #kl_navigation ul li a {
+   border-bottom: 3px solid #fff;
+}
+#kl_wrapper_3.kl_basic_color #kl_navigation ul li a,
+#kl_wrapper_3.kl_basic_color #kl_navigation ul li a:hover,
+#kl_wrapper_3.kl_basic_color #kl_navigation ul li a:focus,
+#kl_wrapper_3.kl_basic_color #kl_navigation ul li a:visited {
+    color: #fff;
+}
+/* BASIC COLOR PANEL NAVIGAION */
+#kl_wrapper_3.kl_basic_color_panel_nav #kl_navigation ul li a {
+   /*color:  #0088CC;*/
+}
+#kl_wrapper_3.kl_basic_color_panel_nav #kl_navigation ul li a:hover {
+    /*color: #0088CC;*/
+}
+#kl_wrapper_3.kl_basic_color_panel_nav #kl_navigation li a:visited {
+   /*color: #0088CC;*/
+}
+/* Media Queries w/ & w/out Course Menu Collapsed */
+@media screen and (min-width: 640px) {
+    #kl_wrapper_3.kl_basic_color_panel_nav #kl_navigation ul {
+        background-color: rgba(255, 255, 255, 0.75);
+    }
+    #kl_wrapper_3.kl_basic_color_panel_nav #kl_navigation ul li a:hover {
+        background: #fff;
+    }
+}
+
+/*********************************************************************/
+/*****    BOOKMARK THEME      ****************************************/
+
+#kl_wrapper_3.kl_bookmark #kl_banner h2 {
+   background-color: #0A3665;
+   color: #FFF;
+}
+#kl_wrapper_3.kl_bookmark #kl_banner #kl_banner_left {
+    border-right: 3px solid #fff;
+}
+#kl_wrapper_3.kl_bookmark #kl_banner #kl_banner_left .kl_mod_num {
+    color: #0A3665;
+}
+#kl_wrapper_3.kl_bookmark #kl_banner .kl_subtitle {
+    color: #fff;
+    background-color: #00002E;
+}
+#kl_wrapper_3.kl_bookmark h3:not(.ui-state-default) {
+    background-color: #0A3665;
+    color: #fff;
+}
+#kl_wrapper_3.kl_bookmark > div > i {
+    background-color: #0A3665;
+    color: #fff;
+}
+#kl_wrapper_3.kl_bookmark h4:not(.kl_panel_heading), 
+#kl_wrapper_3.kl_bookmark h5:not(.kl_panel_heading) {
+    background-color: dimgray;
+    color: #fff;
+}
+#kl_wrapper_3.kl_bookmark #kl_banner #kl_description {
+    border: 1px solid #0A3665;
+}
+#kl_wrapper_3.kl_bookmark #kl_navigation ul li a {
+    background: #fff;
+    color: #0A3665;
+    border: 1px solid #eaeaea;
+}
+#kl_wrapper_3.kl_bookmark .kl_quick_check,
+#kl_wrapper_3.kl_bookmark #kl_modules .ui-tabs-panel {
+    background: #fff;
+}
+
+/*********************************************************************/
+/***** BOX LEFT THEMES              **********************************/
+
+/* BASE THEME */
+#kl_wrapper_3.kl_box_left h2 {
+  border-bottom: 2px solid lightgray;
+}
+#kl_wrapper_3.kl_box_left h3:not(.ui-state-default) {
+  border-bottom: 1px solid lightgray;
+  border-top: 1px solid lightgray;
+}
+#kl_wrapper_3.kl_box_left h3:not(.ui-state-default) i {
+  background: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_box_left #kl_modules div.kl_module_content h3 {
+  border: 1px solid lightgray;
+}
+#kl_wrapper_3.kl_box_left #kl_banner #kl_description {
+  background: #fff;
+  border: 1px solid lightgray;
+}
+#kl_wrapper_3.kl_box_left > div > i {
+  color: #fff;
+}
+#kl_wrapper_3.kl_box_left #kl_banner #kl_banner_left {
+  background: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_box_left > div > i {
+  background: #0A3665;
+}
+#kl_wrapper_3.kl_box_left #kl_navigation ul li a,
+#kl_wrapper_3.kl_box_left #kl_navigation ul li a:visited {
+  background: #fff;
+  color: #000;
+  border: 1px solid #F8C649;
+}
+#kl_wrapper_3.kl_box_left #kl_navigation ul li a:hover,
+#kl_wrapper_3.kl_box_left #kl_navigation ul li a:focus {
+ background: #F8C649;
+ color: #000;
+}
+
+/* VARIATION #2 */
+#kl_wrapper_3.kl_box_left.variation_2 #kl_banner #kl_banner_left {
+  background: #A29061;
+  color: #000;
+}
+#kl_wrapper_3.kl_box_left.variation_2 > div > i {
+  background: #A29061;
+  color: #000;
+}
+#kl_wrapper_3.kl_box_left.variation_2 h3:not(.ui-state-default) i {
+  background: #A29061;
+  color: #000;
+}
+#kl_wrapper_3.kl_box_left.variation_2 #kl_navigation ul li a,
+#kl_wrapper_3.kl_box_left.variation_2 #kl_navigation ul li a:visited {
+  background: #fff;
+  color: #000;
+  border: 1px solid #F8C649;
+}
+#kl_wrapper_3.kl_box_left.variation_2 #kl_navigation ul li a:focus,
+#kl_wrapper_3.kl_box_left.variation_2 #kl_navigation ul li a:hover {
+  background: #F8C649;
+  color: #000;
+}
+
+/* VARIATION #3 */
+#kl_wrapper_3.kl_box_left.variation_3 #kl_banner #kl_banner_left {
+  background: #F8C649;
+  color: #000;
+}
+#kl_wrapper_3.kl_box_left.variation_3 > div > i {
+  background: #F8C649;
+  color: #000;
+}
+#kl_wrapper_3.kl_box_left.variation_3 h3:not(.ui-state-default) i {
+  background: #F8C649;
+  color: #000;
+}
+#kl_wrapper_3.kl_box_left.variation_3 #kl_navigation ul li a,
+#kl_wrapper_3.kl_box_left.variation_3 #kl_navigation ul li a:visited {
+   background: #fff;
+   color: #000;
+   border: 1px solid #F8C649;
+}
+#kl_wrapper_3.kl_box_left.variation_3 #kl_navigation ul li a:focus,
+#kl_wrapper_3.kl_box_left.variation_3 #kl_navigation ul li a:hover {
+  background: #F8C649;
+  color: #000;
+}
+
+/*********************************************************************/
+/***** CIRCLE-LEFT THEME *********************************************/
+
+/* BASE THEME */
+#kl_wrapper_3.kl_circle_left #kl_banner_left {
+    border: 5px solid #fff;
+}
+#kl_wrapper_3.kl_circle_left h3:not(.ui-state-default) {
+    background-color: #fff;
+}
+#kl_wrapper_3.kl_circle_left > div > h3:not(.ui-state-default) i,
+#kl_wrapper_3.kl_circle_left #kl_modules div.kl_module_content h3 i  {
+    border: 5px solid #fff;
+}
+#kl_wrapper_3.kl_circle_left #kl_navigation ul li i {
+    border: 3px solid #fff;
+    background: #F8C649;
+    color: #0A3665;
+}
+#kl_wrapper_3.kl_circle_left,
+#kl_wrapper_3.kl_circle_left #kl_banner .kl_subtitle,
+#kl_wrapper_3.kl_circle_left #kl_banner #kl_description,
+#kl_wrapper_3.kl_circle_left h3:not(.ui-state-default),
+#kl_wrapper_3.kl_circle_left h4:not(.kl_panel_heading),
+#kl_wrapper_3.kl_circle_left h5,
+#kl_wrapper_3.kl_circle_left #kl_banner_image img {
+    border-color: #F8C649;
+}
+#kl_wrapper_3.kl_circle_left #kl_banner_left,
+#kl_wrapper_3.kl_circle_left h3 i,
+#kl_wrapper_3.kl_circle_left > div > i {
+    background: #0A3665;
+    color: #fff;
+}
+#kl_wrapper_3.kl_circle_left #kl_navigation ul li a,
+#kl_wrapper_3.kl_circle_left #kl_navigation ul li a {
+    background: #0A3665;
+    color: #FFF;
+}
+#kl_wrapper_3.kl_circle_left #kl_banner h2 {
+    background: #F8C649;
+    color: #000;
+}
+
+/* Variation 2 */
+#kl_wrapper_3.kl_circle_left.variation_2,
+#kl_wrapper_3.kl_circle_left.variation_2 #kl_banner .kl_subtitle,
+#kl_wrapper_3.kl_circle_left.variation_2 #kl_banner #kl_description,
+#kl_wrapper_3.kl_circle_left.variation_2 #kl_banner_image img {
+    border-color: #A29061;
+}
+#kl_wrapper_3.kl_circle_left.variation_2 h4:not(.kl_panel_heading),
+#kl_wrapper_3.kl_circle_left.variation_2 h5,
+#kl_wrapper_3.kl_circle_left.variation_2 h3:not(.ui-state-default) {
+    border-color: #0A3665;
+}
+#kl_wrapper_3.kl_circle_left.variation_2 #kl_banner_left,
+#kl_wrapper_3.kl_circle_left.variation_2 h3 i,
+#kl_wrapper_3.kl_circle_left.variation_2 > div > i {
+    background: #A29061;
+    color: #000;
+}
+#kl_wrapper_3.kl_circle_left.variation_2 #kl_navigation ul li i {
+    background: #0A3665;
+    color: #fff;
+}
+#kl_wrapper_3.kl_circle_left.variation_2 #kl_navigation ul li a,
+#kl_wrapper_3.kl_circle_left.variation_2 #kl_navigation ul li a {
+    background: #A29061;
+    color: #000;
+}
+#kl_wrapper_3.kl_circle_left.variation_2 #kl_banner h2 {
+    background: #0A3665;
+    color: #FFF;
+}
+
+/* Variation 3 */
+#kl_wrapper_3.kl_circle_left.variation_3,
+#kl_wrapper_3.kl_circle_left.variation_3 #kl_banner .kl_subtitle,
+#kl_wrapper_3.kl_circle_left.variation_3 #kl_banner #kl_description,
+#kl_wrapper_3.kl_circle_left.variation_3 #kl_banner_image img {
+    border-color: #F8C649;
+}
+#kl_wrapper_3.kl_circle_left.variation_3 h4:not(.kl_panel_heading),
+#kl_wrapper_3.kl_circle_left.variation_3 h5,
+#kl_wrapper_3.kl_circle_left.variation_3 h3:not(.ui-state-default) {
+    border-color: #0A3665;
+}
+#kl_wrapper_3.kl_circle_left.variation_3 #kl_banner_left,
+#kl_wrapper_3.kl_circle_left.variation_3 h3:not(.ui-state-default) i,
+#kl_wrapper_3.kl_circle_left.variation_3 > div > i {
+    background: #F8C649;
+    color: #000;
+}
+#kl_wrapper_3.kl_circle_left.variation_3 #kl_navigation.kl_active a,
+#kl_wrapper_3.kl_circle_left.variation_3 #kl_navigation ul li i {
+    background: #0A3665;
+    color: #fff;
+}
+#kl_wrapper_3.kl_circle_left.variation_3 #kl_navigation ul li a,
+#kl_wrapper_3.kl_circle_left.variation_3 #kl_navigation ul li a {
+    background: #F8C649;
+    color: #000;
+}
+#kl_wrapper_3.kl_circle_left.variation_3 #kl_banner h2 {
+    background: #0A3665;
+    color: #FFF;
+}
+
+/*********************************************************************/
+/*****    CIRCLES OVERLAP THEME        *******************************/
+
+/* This one still needs a lot of work */
+#kl_wrapper_3.kl_circles_overlap #kl_banner #kl_banner_right {
+    color: #696969;
+    background: rgba(255, 255, 255, 0.68);
+}
+#kl_wrapper_3.kl_circles_overlap #kl_banner .kl_subtitle {
+    background: rgba(255, 255, 255, 0.72);
+}
+#kl_wrapper_3.kl_circles_overlap #kl_banner #kl_description {
+    background-color: #fff;
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.42);
+}
+#kl_wrapper_3.kl_circles_overlap #kl_navigation li a,
+#kl_wrapper_3.kl_circles_overlap #kl_navigation li a:hover,
+#kl_wrapper_3.kl_circles_overlap #kl_navigation li a:focus,
+#kl_wrapper_3.kl_circles_overlap #kl_navigation li a:visited {
+ color: #fff;
+}
+#kl_wrapper_3.kl_circles_overlap #kl_navigation li a {
+    background-color: #0A3665;
+}
+#kl_wrapper_3.kl_circles_overlap > div > i,
+#kl_wrapper_3.kl_circles_overlap h3:not(.ui-state-default) i{
+    background-color: dimgray;
+    color: #fff;
+}
+#tinymce.kl_mce_visual_blocks #kl_wrapper_3.kl_circles_overlap #kl_navigation li a,
+#kl_wrapper_3.kl_circles_overlap #kl_navigation.kl_active li a,
+#kl_wrapper_3.kl_circles_overlap #kl_navigation li a:hover {
+    color: #fff;
+    background: dimgray !important;
+}
+#tinymce.kl_mce_visual_blocks #kl_wrapper_3.kl_circles_overlap #kl_navigation li a i,
+#kl_wrapper_3.kl_circles_overlap #kl_navigation.kl_active li a i,
+#kl_wrapper_3.kl_circles_overlap #kl_navigation li a:hover i {
+    background-color: dimgray;
+}
+
+/*********************************************************************/
+/***** COLORED HEADINGS & COLORED HEADINGS BOX LEFT THEMES  **********/
+
+/* SHARED */
+#kl_wrapper_3.kl_colored_headings_box_left > div,
+#kl_wrapper_3.kl_colored_headings > div {
+  background-color: #fff;
+  border: 1px solid lightgray;
+}
+
+#kl_wrapper_3.kl_colored_headings_box_left #kl_navigation ul,
+#kl_wrapper_3.kl_colored_headings #kl_navigation ul {
+  background-color: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_colored_headings_box_left #kl_navigation li a:hover,
+#kl_wrapper_3.kl_colored_headings #kl_navigation li a:hover {
+  color: #fff;
+  background-color: #3e3e3e;
+  -moz-box-shadow:    inset 0 0 3px #fff;
+  -webkit-box-shadow: inset 0 0 3px #fff;
+  box-shadow:         inset 0 0 3px #fff;
+}
+
+/* With Banner */
+#kl_wrapper_3.kl_colored_headings_box_left #kl_banner {
+  background: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_colored_headings_box_left #kl_banner #kl_banner_left {
+  background-color: #fff;
+  color: #696969;
+  border-bottom: 5px solid #696969;
+}
+#kl_wrapper_3.kl_colored_headings_box_left #kl_banner .kl_subtitle {
+  background-color: #fff;
+  color: #000;
+}
+/* Without default banner */
+#kl_wrapper_3.kl_colored_headings #kl_banner {
+  background: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_colored_headings #kl_banner #kl_banner_left {
+  background-color: #fff;
+  color: #696969;
+}
+#kl_wrapper_3.kl_colored_headings #kl_banner .kl_subtitle {
+  border-top: 3px solid #fff;
+  border-bottom: 3px solid #fff;
+}
+#kl_wrapper_3.kl_colored_headings #kl_banner #kl_description {
+  background-color: #fff;
+  color: #000;
+}
+#kl_wrapper_3.kl_colored_headings #kl_navigation li a,
+#kl_wrapper_3.kl_colored_headings #kl_navigation li a:hover,
+#kl_wrapper_3.kl_colored_headings #kl_navigation li a:focus,
+#kl_wrapper_3.kl_colored_headings #kl_navigation li a:visited,
+#kl_wrapper_3.kl_colored_headings_box_left #kl_navigation li a,
+#kl_wrapper_3.kl_colored_headings_box_left #kl_navigation li a:hover,
+#kl_wrapper_3.kl_colored_headings_box_left #kl_navigation li a:focus,
+#kl_wrapper_3.kl_colored_headings_box_left #kl_navigation li a:visited {
+  color: #fff;
+}
+#kl_wrapper_3.kl_colored_headings_box_left #kl_navigation i,
+#kl_wrapper_3.kl_colored_headings #kl_navigation i {
+  background: #fff;
+  color: #696969;
+  border-bottom: 5px solid #696969;
+}
+#kl_wrapper_3.kl_colored_headings_box_left #kl_modules .ui-widget-content,
+#kl_wrapper_3.kl_colored_headings #kl_modules .ui-widget-content {
+  border: 1px solid lightgray;
+  background: #fff;
+}
+
+/* Default Headings */
+#kl_wrapper_3.kl_colored_headings_box_left #kl_modules h3,
+#kl_wrapper_3.kl_colored_headings #kl_modules h3,
+#kl_wrapper_3.kl_colored_headings_box_left > div > h3:not(.ui-state-default),
+#kl_wrapper_3.kl_colored_headings > div > h3:not(.ui-state-default) {
+  background-color: #747474;
+  border-top: 5px solid #4e4e4e;
+  color: #fff;
+}
+#kl_wrapper_3.kl_colored_headings_box_left > div > h3 i,
+#kl_wrapper_3.kl_colored_headings > div > h3:not(.ui-state-default) i,
+#kl_wrapper_3.kl_colored_headings_box_left #kl_modules h3 i,
+#kl_wrapper_3.kl_colored_headings #kl_modules h3:not(.ui-state-default) i {
+  background-color: #fff;
+  color: #696969;
+  border-bottom: 4px solid #696969;
+}
+/* Objectives Blue*/
+#kl_wrapper_3.kl_colored_headings_box_left #kl_objectives h3:not(.ui-state-default),
+#kl_wrapper_3.kl_colored_headings #kl_objectives h3:not(.ui-state-default) {
+  background-color: #337cac;
+  border-top: 5px solid #1b5378;
+  color: #fff;
+}
+/* Readings Red */
+#kl_wrapper_3.kl_colored_headings_box_left #kl_readings h3:not(.ui-state-default),
+#kl_wrapper_3.kl_colored_headings #kl_readings h3:not(.ui-state-default) {
+  background-color: #d24536;
+  border-top: 5px solid #ae3225;
+  color: #fff;
+}
+/* Lectures Green */
+#kl_wrapper_3.kl_colored_headings_box_left #kl_lectures h3:not(.ui-state-default),
+#kl_wrapper_3.kl_colored_headings #kl_lectures h3:not(.ui-state-default) {
+  background-color: #28834e;
+  border-top: 5px solid #176c3b;
+  color: #fff;
+}
+/* Activities Orange */
+#kl_wrapper_3.kl_colored_headings_box_left #kl_activities h3:not(.ui-state-default),
+#kl_wrapper_3.kl_colored_headings #kl_activities h3:not(.ui-state-default) {
+  background-color: #bf5900;
+  border-top: 5px solid #913a01;
+  color: #fff;
+}
+/* Assignments Purple */
+#kl_wrapper_3.kl_colored_headings_box_left #kl_assignments h3:not(.ui-state-default),
+#kl_wrapper_3.kl_colored_headings #kl_assignments h3:not(.ui-state-default) {
+  background-color: #9b59b6;
+  border-top: 5px solid #8e44ad;
+  color: #fff;
+}
+/* Other Styles */
+#kl_wrapper_3.kl_colored_headings_box_left h4,
+#kl_wrapper_3.kl_colored_headings h4 {
+  border-bottom: 1px solid #E0E0E0;
+  color: #000;
+}
+#kl_wrapper_3.kl_colored_headings_box_left h5,
+#kl_wrapper_3.kl_colored_headings h5 {
+  border-bottom: 1px solid #E0E0E0;
+  color: #000;
+}
+#kl_wrapper_3.kl_colored_headings_box_left .well,
+#kl_wrapper_3.kl_colored_headings .well {
+  background-color: #f5f5f5;
+  border: 1px solid #e3e3e3;
+  box-shadow: inset 0 1px 1px rgba(0, 0, 0, .05);
+  -webkit-box-shadow: inset 0 1px 1px rgba(0, 0, 0, .05);
+}
+
+/*********************************************************************/
+/***** EMTA THEME         ********************************************/
+
+#kl_wrapper_3.kl_emta {
+  color: #000;
+}
+#kl_wrapper_3.kl_emta #kl_banner h2 {
+  background-color: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_emta #kl_banner #kl_banner_left {
+  border-right: 2px solid #fff;
+}
+#kl_wrapper_3.kl_emta #kl_banner #kl_banner_left .kl_mod_num{
+  color: #0A3665;
+}
+#kl_wrapper_3.kl_emta #kl_banner {
+  background: #CACDCF;
+}
+#kl_wrapper_3.kl_emta #kl_banner #kl_description {
+  background: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_emta h3:not(.ui-state-default) {
+  color: #000;
+  background: #CACDCF;
+}
+#kl_wrapper_3.kl_emta #kl_navigation ul {
+  background-color: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_emta #kl_navigation li a,
+#kl_wrapper_3.kl_emta #kl_navigation li a:hover,
+#kl_wrapper_3.kl_emta #kl_navigation li a:focus,
+#kl_wrapper_3.kl_emta #kl_navigation li a:visited {
+  color: #fff;
+}
+#kl_wrapper_3.kl_emta #kl_modules {
+  border: 1px solid #0A3665;
+}
+
+/********************************************************************/
+/**** FLAT SECTIONS & FLAT SECTIONS MAIN THEMES *********************/
+
+/**** FLAT SECTIONS MAIN ****/
+#kl_wrapper_3.kl_flat_sections_main #kl_banner {
+    background: #0A3665;
+    color: #fff;
+}
+#kl_wrapper_3.kl_flat_sections_main #kl_banner #kl_banner_left{
+    background-color: #fff;
+    color: #696969;
+}
+#kl_wrapper_3.kl_flat_sections_main #kl_banner .kl_subtitle {
+   background: #fff;
+   color: black;
+}
+#kl_wrapper_3.kl_flat_sections_main #kl_banner #kl_description {
+   border-top: 2px solid #fff;
+}
+
+/**** FLAT SECTIONS ****/
+#kl_wrapper_3.kl_flat_sections #kl_banner {
+    background: #0A3665;
+    color: #fff;
+}
+#kl_wrapper_3.kl_flat_sections #kl_banner h2 {
+   border-top: 1px solid #fff;
+}
+#kl_wrapper_3.kl_flat_sections #kl_banner #kl_banner_left{
+   background-color: #fff;
+   color: #696969;
+}
+#kl_wrapper_3.kl_flat_sections #kl_banner .kl_subtitle {
+   background: #fff;
+   color: #696969;
+}
+#kl_wrapper_3.kl_flat_sections #kl_banner #kl_description {
+   background: #fff;
+   color: #696969;
+}
+
+/**** SHARED ****/
+#kl_wrapper_3.kl_flat_sections_main #kl_navigation ul,
+#kl_wrapper_3.kl_flat_sections #kl_navigation ul {
+    background-color: #0A3665;
+    color: #fff;
+}
+#kl_wrapper_3.kl_flat_sections #kl_navigation li a,
+#kl_wrapper_3.kl_flat_sections #kl_navigation li a:visited,
+#kl_wrapper_3.kl_flat_sections_main #kl_navigation li a,
+#kl_wrapper_3.kl_flat_sections_main #kl_navigation li a:visited {
+   color: #fff;
+}
+#kl_wrapper_3.kl_flat_sections #kl_navigation li a:hover,
+#kl_wrapper_3.kl_flat_sections #kl_navigation li a:focus,
+#kl_wrapper_3.kl_flat_sections_main #kl_navigation li a:hover,
+#kl_wrapper_3.kl_flat_sections_main #kl_navigation li a:focus {
+    background: slategray;
+    color: #fff;
+}
+#kl_wrapper_3.kl_flat_sections_main #kl_navigation i,
+#kl_wrapper_3.kl_flat_sections #kl_navigation i {
+   background: #fff;
+   color: #696969;
+   border: 1px solid #696969;
+}
+/* Content */
+#kl_wrapper_3.kl_flat_sections_main h3:not(.ui-state-default),
+#kl_wrapper_3.kl_flat_sections h3:not(.ui-state-default) {
+    color: #000;
+    border-top: 1px solid #E0E0E0;
+}
+#kl_wrapper_3.kl_flat_sections_main > div > i,
+#kl_wrapper_3.kl_flat_sections > div > i {
+    color: #696969;
+    border: 1px solid #E0E0E0;
+    background: #fff;
+}
+#kl_wrapper_3.kl_flat_sections_main h3:not(.ui-state-default) i:first-child,
+#kl_wrapper_3.kl_flat_sections h3:not(.ui-state-default) i:first-child {
+    color: #696969;
+    border: 1px solid #E0E0E0;
+    background: #fff;
+}
+#kl_wrapper_3.kl_flat_sections_main h4,
+#kl_wrapper_3.kl_flat_sections h4 {
+    color: #000;
+    border-bottom: 1px solid #E0E0E0;
+}
+#kl_wrapper_3.kl_flat_sections_main h5,
+#kl_wrapper_3.kl_flat_sections h5 {
+    color: #000;
+    border-bottom: 1px solid #E0E0E0;
+}
+#kl_wrapper_3.kl_flat_sections_main > div:nth-child(odd),
+#kl_wrapper_3.kl_flat_sections > div:nth-child(odd) {
+    background: whitesmoke;
+}
+#kl_wrapper_3.kl_flat_sections_main .well,
+#kl_wrapper_3.kl_flat_sections .well {
+   background-color: #f5f5f5;
+   border: 1px solid #e3e3e3;
+   -webkit-box-shadow: inset 0 1px 1px rgba(0,0,0,.05);
+   box-shadow: inset 0 1px 1px rgba(0,0,0,.05);
+}
+#kl_wrapper_3.kl_flat_sections_main blockquote,
+#kl_wrapper_3.kl_flat_sections blockquote {
+    border-left: 5px solid #E0E0E0;
+}
+
+/*********************************************************************/
+/***** GENERIC THEME  ************************************************/
+
+/* .kl_generic: This one is intentionally generic so there is no customization needed */
+
+
+/*********************************************************************/
+/*****    RIBBONS THEME      *****************************************/
+
+#kl_wrapper_3.kl_ribbons_main #kl_banner #kl_banner_left {
+  background: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_ribbons_main #kl_banner #kl_banner_right {
+  background: rgba(255, 255, 255, 0.65);
+  border-bottom: 1px solid #b9b9b9;
+}
+#kl_wrapper_3.kl_ribbons_main #kl_banner .kl_subtitle {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid #b9b9b9;
+}
+#kl_wrapper_3.kl_ribbons_main #kl_banner #kl_description {
+  border: 4px double #b9b9b9;
+  background: rgba(255, 255, 255, 0.8);
+}
+#kl_wrapper_3.kl_ribbons_main #kl_navigation a i {
+  background: #0A3665;
+  color: #FFF;
+}
+#kl_wrapper_3.kl_ribbons_main #kl_navigation li a{
+  background: rgba(255, 255, 255, 0.8);
+  color: #545454;
+  border: 1px solid #b9b9b9;
+}
+#kl_wrapper_3.kl_ribbons_main h3:not(.ui-state-default) {
+  background-color: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_ribbons_main h3:not(.ui-state-default) i {
+  background: #FFF;
+  color: #0A3665;
+}
+#kl_wrapper_3.kl_ribbons_main > div > i {
+  background-color: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_ribbons_main .kl_quick_check,
+#kl_wrapper_3.kl_ribbons_main #kl_modules .ui-tabs-panel {
+  background: #fff;
+}
+/* Course Menu Expanded */
+@media screen and (min-width: 950px) {
+
+  body.course-menu-expanded #kl_wrapper_3.kl_ribbons_main #kl_navigation li a{
+    background: #fff;
+  }
+  body.course-menu-expanded #kl_wrapper_3.kl_ribbons_main #kl_navigation a:after {
+    border: 22px solid #fff;
+    border-left: 20px solid transparent;
+  }
+}
+/* Banner text above Navigation as ribbons */
+/* Course Menu Collapsed */
+@media screen and (min-width: 800px) and (max-width: 969px) {
+  body:not(.course-menu-expanded) #kl_wrapper_3.kl_ribbons_main #kl_navigation li a{
+    background: #fff;
+  }
+  body:not(.course-menu-expanded) #kl_wrapper_3.kl_ribbons_main #kl_navigation a:after {
+    border: 22px solid #fff;
+    border-left: 20px solid transparent;
+  }
+}
+/* Navigation as rotated ribbons */
+/* Course Menu Collapsed */
+@media screen and (min-width: 1000px) {
+  body:not(.course-menu-expanded) #kl_wrapper_3.kl_ribbons_main #kl_navigation li a{
+    background: #fff;
+  }
+  body:not(.course-menu-expanded) #kl_wrapper_3.kl_ribbons_main #kl_navigation a:after {
+    border: 22px solid #fff;
+    border-left: 20px solid transparent;
+  }
+}
+
+/*********************************************************************/
+/***** ROUNDED-INSET THEMES 1, 2, 3 **********************************/
+
+/* BASE */
+#kl_wrapper_3.kl_rounded_inset h2 {
+ border-color: #8A8A8A;
+ background: #fff;
+ color: #000;
+}
+#kl_wrapper_3.kl_rounded_inset #kl_banner {
+ background: #0A3665;
+ color: #fff;
+}
+#kl_wrapper_3.kl_rounded_inset #kl_banner_left {
+  border-color: #0A3665;
+}
+#kl_wrapper_3.kl_rounded_inset #kl_banner #kl_description,
+#kl_wrapper_3.kl_rounded_inset #kl_banner .kl_subtitle {
+  color: #fff;
+}
+#kl_wrapper_3.kl_rounded_inset h3:not(.ui-state-default) {
+  border-color: #efefef;
+  background-color: #fff;
+}
+#kl_wrapper_3.kl_rounded_inset > div > i {
+  border-color: #efefef;
+}
+#kl_wrapper_3.kl_rounded_inset #kl_navigation ul li a,
+#kl_wrapper_3.kl_rounded_inset #kl_navigation ul li a:visited {
+ color: #0A3665;
+ border-color: #0A3665;
+}
+#kl_wrapper_3.kl_rounded_inset #kl_navigation ul li a:hover,
+#kl_wrapper_3.kl_rounded_inset #kl_navigation ul li a:focus {
+ background: #0A3665;
+ color: #FFF;
+}
+/* VARIATION 2 */
+#kl_wrapper_3.kl_rounded_inset.variation_2 #kl_banner {
+ background: #F8C649;
+ color: #000;
+}
+#kl_wrapper_3.kl_rounded_inset.variation_2 #kl_banner_left {
+  border-color: #F8C649;
+}
+#kl_wrapper_3.kl_rounded_inset.variation_2 #kl_banner #kl_description,
+#kl_wrapper_3.kl_rounded_inset.variation_2 #kl_banner .kl_subtitle {
+  color: #000;
+}
+#kl_wrapper_3.kl_rounded_inset.variation_2 #kl_navigation ul li a,
+#kl_wrapper_3.kl_rounded_inset.variation_2 #kl_navigation ul li a:visited {
+ color: #000;
+ border-color: #F8C649;
+}
+#kl_wrapper_3.kl_rounded_inset.variation_2 #kl_navigation ul li a:hover,
+#kl_wrapper_3.kl_rounded_inset.variation_2 #kl_navigation ul li a:focus {
+ background: #F8C649;
+ color: #000;
+}
+
+/* VARIATION 3 */
+#kl_wrapper_3.kl_rounded_inset.variation_3 #kl_banner {
+ background: #A29061;
+ color: #000;
+}
+#kl_wrapper_3.kl_rounded_inset.variation_3 #kl_banner_left {
+  border-color: #A29061;
+}
+#kl_wrapper_3.kl_rounded_inset.variation_3 #kl_banner #kl_description,
+#kl_wrapper_3.kl_rounded_inset.variation_3 #kl_banner .kl_subtitle {
+  color: #000;
+}
+#kl_wrapper_3.kl_rounded_inset.variation_3 #kl_navigation ul li a,
+#kl_wrapper_3.kl_rounded_inset.variation_3 #kl_navigation ul li a:visited {
+ color: #0A3665;
+ border-color: #A29061;
+}
+#kl_wrapper_3.kl_rounded_inset.variation_3 #kl_navigation ul li a:focus,
+#kl_wrapper_3.kl_rounded_inset.variation_3 #kl_navigation ul li a:hover {
+ background: #A29061;
+ color: #000;
+}
+
+/*********************************************************************/
+/***** SQUARE RIGHT THEMES 1, 2, 3  **********************************/
+
+/* BASE */
+#kl_wrapper_3.kl_square_right h2 {
+  background: #F8C649;
+  color: #000;
+}
+#kl_wrapper_3.kl_square_right #kl_banner_left {
+  background: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_square_right #kl_banner #kl_description,
+#kl_wrapper_3.kl_square_right #kl_banner .kl_subtitle {
+ border-color: #F8C649;
+}
+#kl_wrapper_3.kl_square_right h3:not(.ui-state-default) {
+ border-color: #D5D5D5;
+ background-color: #fff;
+}
+#kl_wrapper_3.kl_square_right #kl_banner .kl_subtitle {
+ color: #0A3665;
+}
+#kl_wrapper_3.kl_square_right #kl_navigation ul li i {
+ background: #F8C649;
+ color: #000;
+}
+#kl_wrapper_3.kl_square_right > div > i,
+#kl_wrapper_3.kl_square_right h3:not(.ui-state-default) i {
+ background: #0A3665;
+ color: #fff;
+}
+#kl_wrapper_3.kl_square_right #kl_navigation ul li a,
+#kl_wrapper_3.kl_square_right #kl_navigation ul li a:visited {
+ background: #fff;
+ color: #000;
+ border-color: #F8C649;
+}
+#kl_wrapper_3.kl_square_right #kl_navigation ul li a:hover,
+#kl_wrapper_3.kl_square_right #kl_navigation ul li a:focus {
+ background: #0A3665;
+ color: #FFF;
+}
+
+/* 2 */
+#kl_wrapper_3.kl_square_right.variation_2 h2 {
+  background: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_square_right.variation_2 #kl_banner_left {
+  background: #F8C649;
+  color: #000;
+}
+#kl_wrapper_3.kl_square_right.variation_2 #kl_banner #kl_description,
+#kl_wrapper_3.kl_square_right.variation_2 #kl_banner .kl_subtitle {
+ border-color: #0A3665;
+}
+#kl_wrapper_3.kl_square_right.variation_2 > div > i,
+#kl_wrapper_3.kl_square_right.variation_2 h3:not(.ui-state-default) i {
+ background: #F8C649;
+ color: #000;
+}
+#kl_wrapper_3.kl_square_right.variation_2 #kl_navigation ul li a,
+#kl_wrapper_3.kl_square_right.variation_2 #kl_navigation ul li a:visited {
+ background: #fff;
+ color: #000;
+ border-color: #F8C649;
+}
+#kl_wrapper_3.kl_square_right.variation_2 #kl_navigation ul li a:hover,
+#kl_wrapper_3.kl_square_right.variation_2 #kl_navigation ul li a:focus {
+ background: #F8C649;
+ color: #000;
+}
+#kl_wrapper_3.kl_square_right.variation_2 #kl_navigation ul li i {
+ background: #0A3665;
+ color: #fff;
+}
+
+/* 3 */
+#kl_wrapper_3.kl_square_right.variation_3 h2 {
+  background: #0A3665;
+  color: #fff;
+}
+#kl_wrapper_3.kl_square_right.variation_3 #kl_banner_left {
+  background: #A29061;
+  color: #000;
+}
+#kl_wrapper_3.kl_square_right.variation_3 #kl_banner #kl_description,
+#kl_wrapper_3.kl_square_right.variation_3 #kl_banner .kl_subtitle {
+ border-color: #0A3665;
+}
+#kl_wrapper_3.kl_square_right.variation_3 > div > i,
+#kl_wrapper_3.kl_square_right.variation_3 h3:not(.ui-state-default) i {
+ background: #A29061;
+ color: #000;
+}
+#kl_wrapper_3.kl_square_right.variation_3 #kl_navigation ul li a,
+#kl_wrapper_3.kl_square_right.variation_3 #kl_navigation ul li a:visited {
+ background: #fff;
+ color: #000;
+ border-color: #A29061;
+}
+#kl_wrapper_3.kl_square_right.variation_3 #kl_navigation ul li a:hover,
+#kl_wrapper_3.kl_square_right.variation_3 #kl_navigation ul li a:focus {
+ background: #A29061;
+ color: #000;
+}
+#kl_wrapper_3.kl_square_right.variation_3 #kl_navigation ul li i {
+ background: #0A3665;
+ color: #fff;
+}
+
+/*********************************************************************/
+/***** END DESIGN TOOLS THEME CUSTOMIZATIONS *************************/
+/*********************************************************************/
+
+/* ERAU customizations of Cidi Labs tools */
+
+#kl_wrapper_3 div.kl_book_nav h3:not(.ui-state-default),
+#kl_wrapper_3.kl_basic_bar h3:not(.ui-state-default),
+#kl_wrapper_3.kl_circles_overlap #kl_banner #kl_banner_right,
+#kl_wrapper_3.kl_colored_headings #kl_banner h2,
+#kl_wrapper_3.kl_colored_headings #kl_banner .kl_subtitle,
+#kl_wrapper_3.kl_colored_headings>div>h3:not(.ui-state-default),
+#kl_wrapper_3.kl_colored_headings_box_left>div>h3:not(.ui-state-default),
+#kl_wrapper_3.kl_colored_headings_box_left h4,
+#kl_wrapper_3.kl_colored_headings h4,
+#kl_wrapper_3.kl_flat_sections_main #kl_banner h2,
+#kl_wrapper_3.kl_flat_sections #kl_banner h2,
+#kl_wrapper_3.kl_flat_sections #kl_banner .kl_subtitle,
+#kl_wrapper_3.kl_flat_sections_main h3:not(.ui-state-default),
+#kl_wrapper_3.kl_flat_sections h3:not(.ui-state-default),
+#kl_wrapper_3.kl_flat_sections_main h4,
+#kl_wrapper_3.kl_flat_sections h4,
+#kl_wrapper_3.kl_ribbons_main #kl_banner #kl_banner_left,
+#kl_wrapper_3.kl_ribbons_main #kl_banner .kl_subtitle,
+#kl_wrapper_3.kl_rounded_inset_1 h3:not(.ui-state-default),
+#kl_wrapper_3.kl_rounded_inset_2 h3:not(.ui-state-default),
+#kl_wrapper_3.kl_rounded_inset_3 h3:not(.ui-state-default),
+#kl_wrapper_3.kl_rounded_inset h3:not(.ui-state-default),
+#kl_wrapper_3.kl_rounded_inset #kl_banner .kl_subtitle,
+#kl_wrapper_3.kl_rounded_inset_1 #kl_banner .kl_subtitle,
+#kl_wrapper_3.kl_rounded_inset_2 #kl_banner .kl_subtitle,
+#kl_wrapper_3.kl_rounded_inset_3 #kl_banner .kl_subtitle,
+#kl_wrapper_3.kl_circles #kl_banner #kl_banner_right span.kl_subtitle {
+  text-transform: none;
+}
