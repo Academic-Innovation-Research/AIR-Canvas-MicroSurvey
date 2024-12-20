@@ -58,6 +58,12 @@ When you set up a database like Postgres or MySQL in Docker, it creates a volume
 If you can't remove the volume, then it's probably it's in use. Use `docker-compose down` to shut the application down.
 
 
+### Helpful Docker CLI
++ `docker system prune -a --volumes -f`
++ `docker exec -it metabase-container ls -la`
++ `docker ps`
++ `docker logs metabase-container > logs.txt`
+
 
 ## Documentation Reference
 + [Metabase](https://www.metabase.com/docs/latest/operations-guide/configuring-application-database.html)
