@@ -38,6 +38,11 @@ Container configurations depend on environment variables defined in an `.env` fi
 + There is no need to re-run `docker-compose build` unless you change the database strategy, database name, database credentials or the volumes.
 
 
+### Log In
++ [Metabase](http://localhost:3000/)
++ [PHPMyAdmin](http://localhost:8080/)
+
+
 ### Database
 For the prebuilt dashboard and reports to work the MySQL must be loaded. This file is not included in the distribution. This is not needed to run the application. You can still create your own reports and dashboards.
 
