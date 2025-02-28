@@ -7,13 +7,13 @@ var popShow = function() {
   // USER ADJUSTED VARS:
   //--------------------
   // Either pass course path info to survey or not (1= enable, 0= disable); Used to determine which course respondents replied from.
-  var popCrs = 0; 
+  var popCrs = 1; 
   // Message to display inside div
-  var popMsg = "Are you finding what you are looking for?";
+  var popMsg = "We\'d love your feedback!<br/>Answer 3 questions?";
   // Link to survey, form, mailto, etc.
-  var surveyURL = "mailto:rctle@erau.edu?subject=Faculty Assistance&body=Hello, I need some guidance. Can we schedule a time to connect?";
+  var surveyURL = "https://eraurctle.iad1.qualtrics.com/jfe/form/SV_4YfaaPsQjMGFXP8";
   // Text displayed on popup button linking out
-  var popBtnTxt = "No";
+  var popBtnTxt = "Yes";
   // Timeout in ms (e.g., 1000ms = 1 seconds)
   var popDelay = 1000;
   // Display popup throughout course or just dashboard (0=disable, 1=enable)
@@ -35,7 +35,6 @@ var popShow = function() {
     popHTML += "<button type=\"button\" role=\"button\" class=\"close-button\" onclick=\"ClosePop()\">";
     popHTML += "<span class=\"hidden\">Close</span>";
     popHTML += "</button>";
-    popHTML += "<h2><div class=\"eagleSVG\"></div></h2>";
     popHTML += "<div class=\"survey-content\" id=\"survey-content-text\"><span>"+popMsg+"</span>";
     popHTML += "<a class=\"button\" role=\"button\" id=\"QualtricsSurvey\" href=\""+popURL+"\" target=\"new\">"+popBtnTxt+"</a>";
     popHTML += "</div></div>";
