@@ -5,16 +5,16 @@
   // USER ADJUSTED VARS:
   //--------------------
   // Display type: 0 = popup, 1 = button in sidebar
-  var displayType = 1; 
+  var displayType = 0; 
   
   // Either pass course path info to survey or not (1= enable, 0= disable)
   var popCrs = 1; 
   
   // Message to display inside popup div
-  var popMsg = "Answer 3 Questions?";
+  var popMsg = "Share Your Thoughts";
   
   // Link to survey, form, mailto, etc.
-  var surveyURL = "https://erau.qualtrics.com/jfe/form/SV_emPspxFgximXhHM";
+  var surveyURL = "https://erau.qualtrics.com/jfe/form/SV_7VOlXPhXxcfCU2q";
   
   // Text displayed on popup button linking out
   var popBtnTxt = "Yes";
