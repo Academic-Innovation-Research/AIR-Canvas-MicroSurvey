@@ -1,0 +1,7 @@
+# Run Sequence
+
+1. courses_inserts.sql
+2. people_inserts.sql
+3. enrollment_inserts.sql
+4. survey_responses_inserts.sql
+5. survey_answers_inserts.sql
