@@ -7,7 +7,7 @@ Prompts the user for a human-readable Term for each TermCode.
 
 Usage:
 cd /Users/robert/Downloads/Canvas
-python3 build_courses_inserts.py --csv courses_enriched.csv --outfile courses_inserts.sql
+python3 3-build_courses_inserts.py --csv courses_enriched.csv --outfile courses_inserts.sql
 
 """
 

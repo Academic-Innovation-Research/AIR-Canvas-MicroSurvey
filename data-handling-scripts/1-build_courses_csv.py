@@ -24,7 +24,7 @@ Rules:
 
 Usage:
 cd /Users/robert/Downloads/Canvas
-python3 build_courses_csv.py --root . --outfile courses.csv
+python3 1-build_courses_csv.py --root . --outfile courses.csv
 open courses.csv
 
 """

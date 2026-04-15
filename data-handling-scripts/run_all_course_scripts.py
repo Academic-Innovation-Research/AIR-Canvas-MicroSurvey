@@ -3,11 +3,11 @@
 Master script to run all course-related scripts in sequence.
 
 Order:
-1. build_courses_csv.py                -> courses.csv
-2. enrich_courses_from_rosters.py      -> updates courses.csv with InstructorID + CntStudents
-3. build_courses_inserts.py            -> courses_inserts.sql (and Terms inserts)
-4. build_people_inserts_positional.py  -> people_inserts.sql
-5. build_enrollment_inserts.py         -> enrollment_inserts.sql
+1. 1-build_courses_csv.py                -> courses.csv
+2. 2-enrich_courses_csv.py               -> updates courses.csv with InstructorID + CntStudents
+3. 3-build_courses_inserts.py            -> courses_inserts.sql (and Terms inserts)
+4. 4-build_people_inserts_positional.py  -> people_inserts.sql
+5. 5-build_enrollment_inserts.py         -> enrollment_inserts.sql
 
 Usage:
 cd /Users/robert/Downloads/Canvas
@@ -40,31 +40,31 @@ def run_cmd(cmd_list, description=None):
 def main():
     # 1. Build courses.csv from Notes.md
     run_cmd(
-        ["python3", "build_courses_csv.py", "--root", str(ROOT_DIR), "--outfile", str(COURSES_CSV)],
+        ["python3", "1-build_courses_csv.py", "--root", str(ROOT_DIR), "--outfile", str(COURSES_CSV)],
         "Step 1: Building courses.csv from Notes.md"
     )
 
     # 2. Enrich courses.csv with InstructorID and CntStudents
     run_cmd(
-        ["python3", "enrich_courses_from_rosters.py", "--courses", str(COURSES_CSV), "--rosters", str(ROOT_DIR)],
+        ["python3", "2-enrich_courses_csv.py", "--courses", str(COURSES_CSV), "--rosters", str(ROOT_DIR)],
         "Step 2: Enriching courses.csv with InstructorID and CntStudents"
     )
 
     # 3. Build courses_inserts.sql (this will prompt for Terms)
     run_cmd(
-        ["python3", "build_courses_inserts.py", "--csv", str(COURSES_ENRICHED_CSV), "--outfile", str(COURSES_INSERTS)],
+        ["python3", "3-build_courses_inserts.py", "--csv", str(COURSES_ENRICHED_CSV), "--outfile", str(COURSES_INSERTS)],
         "Step 3: Building courses_inserts.sql (will prompt for Term values)"
     )
 
     # 4. Build people_inserts.sql from rosters
     run_cmd(
-        ["python3", "build_people_inserts_positional.py", "--root", str(ROOT_DIR), "--outfile", str(PEOPLE_INSERTS)],
+        ["python3", "4-build_people_inserts_positional.py", "--root", str(ROOT_DIR), "--outfile", str(PEOPLE_INSERTS)],
         "Step 4: Building people_inserts.sql"
     )
 
     # 5. Build enrollment_inserts.sql from rosters + Notes.md
     run_cmd(
-        ["python3", "build_enrollment_inserts.py", "--root", str(ROOT_DIR), "--outfile", str(ENROLLMENT_INSERTS)],
+        ["python3", "5-build_enrollment_inserts.py", "--root", str(ROOT_DIR), "--outfile", str(ENROLLMENT_INSERTS)],
         "Step 5: Building enrollment_inserts.sql"
     )
 
