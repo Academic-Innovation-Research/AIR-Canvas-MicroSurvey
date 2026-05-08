@@ -1,162 +1,90 @@
 #!/usr/bin/env python3
 """
-Header-agnostic generator for MySQL INSERTs into People.
-Reads Canvas roster CSVs by COLUMN POSITION, not header names.
+Generate MySQL INSERTs into People from Canvas roster CSVs.
 
-Expected column order (from your example):
-0 Profile Picture | 1 Name | 2 Login ID | 3 SIS ID | 4 Section | 5 Role | ...
-
-Outputs batched INSERTs that SKIP duplicates via:
-  ON DUPLICATE KEY UPDATE EMPL_ID = EMPL_ID
+Expected column order (Canvas People-page export):
+  0 Profile Picture | 1 Name | 2 Login ID | 3 SIS ID | 4 Section | 5 Role | ...
 
 Usage:
-  python3 4-build_people_inserts_positional.py --root Enrollment --outfile people_inserts.sql --verbose
-  # or to print to screen:
-  python3 4-build_people_inserts_positional.py --root Enrollment --stdout --verbose > people_inserts.sql
+  python3 4-build_people_inserts_positional.py --root Enrollment --outfile people_inserts.sql
+  python3 4-build_people_inserts_positional.py --root Enrollment --stdout > people_inserts.sql
+"""
 
-  """
-
-import csv
 import sys
 from pathlib import Path
 import argparse
-from typing import List, Tuple, Optional
+from typing import Dict, List, Optional
 
-# Column positions (0-based) based on your CSV structure
-IDX_NAME = 1
-IDX_LOGIN = 2
-IDX_EMPL = 3
-IDX_ROLE = 5
+from pipeline import discover_roster_csvs, parse_roster_path, esc
 
-# Minimal roster header signature (case-insensitive match)
-EXPECTED_HEADER = {"name", "login id", "sis id", "role"}
 
-def log(msg: str, verbose: bool):
+def log(msg: str, verbose: bool) -> None:
     if verbose:
         print(msg)
 
-def escape_mysql_literal(val: Optional[str]) -> str:
-    if val is None:
-        return "NULL"
-    s = (val or "").replace("\u00A0", " ").replace("\r\n", "\n").replace("\r", "\n").strip()
-    s = s.replace("\n", " ").replace("\t", " ")
-    s = s.replace("\\", "\\\\").replace("'", "\\'")
-    return f"'{s}'"
 
-def discover_csvs(root: Path, verbose: bool) -> List[Path]:
-    found = sorted({p for pat in ("*.csv", "*.CSV") for p in root.rglob(pat) if p.is_file()})
-    if not found:
-        print("No CSV files found under:", root, file=sys.stderr)
-    else:
-        log(f"Found {len(found)} CSV file(s) under {root}", verbose)
-        for p in found:
-            log(f"  → {p}", verbose)
-    return list(found)
-
-def _normalize_header_cell(cell: str) -> str:
-    # Strip quotes/spaces, lowercase, and remove BOM if present
-    s = (cell or "").strip().strip('"').strip("'").strip()
-    s = s.lstrip("\ufeff")  # BOM
-    return s.casefold()
-
-def _is_roster_header(cols: List[str]) -> bool:
-    normalized = {_normalize_header_cell(c) for c in cols if c is not None}
-    return EXPECTED_HEADER.issubset(normalized)
-
-def read_csv_rows_positional(path: Path, verbose: bool) -> List[Tuple[Optional[str], Optional[str], str, str]]:
-    rows: List[Tuple[Optional[str], Optional[str], str, str]] = []
-    try:
-        # utf-8-sig handles BOM if present
-        with path.open("r", encoding="utf-8-sig", newline="") as f:
-            reader = csv.reader(f)
-
-            # Read header row and validate it looks like a Canvas roster CSV
-            try:
-                header_cols = next(reader)
-            except StopIteration:
-                log(f"⚠ Skipping empty CSV: {path.name}", verbose)
-                return []
-
-            if not _is_roster_header(header_cols):
-                log(f"⚠ Skipping non-roster CSV: {path.name}", verbose)
-                return []
-
-            # Now parse remaining rows positionally
-            for line_no, cols in enumerate(reader, start=2):
-                if len(cols) <= max(IDX_ROLE, IDX_EMPL, IDX_LOGIN, IDX_NAME):
-                    continue
-                name  = (cols[IDX_NAME] or "").strip() or None
-                login = (cols[IDX_LOGIN] or "").strip() or None
-                empl  = (cols[IDX_EMPL] or "").strip()
-                role  = (cols[IDX_ROLE] or "").strip()
-                if not empl or not role:
-                    # Required to avoid NULL errors and to dedupe
-                    continue
-                rows.append((name, login, empl, role))
-
-    except Exception as e:
-        print(f"✖ Failed to read {path}: {e}", file=sys.stderr)
-
-    log(f"✔ {path.name}: {len(rows)} valid row(s)", verbose)
-    return rows
-
-def batch_insert_values(rows: List[Tuple[Optional[str], Optional[str], str, str]], batch_size: int = 500) -> List[str]:
+def batch_insert_values(rows: List[Dict], batch_size: int = 500) -> List[str]:
     stmts: List[str] = []
     for i in range(0, len(rows), batch_size):
         chunk = rows[i:i + batch_size]
-        values_sql = []
-        for (name, login, empl, role) in chunk:
-            values_sql.append(
-                f"({escape_mysql_literal(name)}, {escape_mysql_literal(login)}, "
-                f"{escape_mysql_literal(empl)}, {escape_mysql_literal(role)})"
-            )
+        values_sql = [
+            f"({esc(r['name'])}, {esc(r['login'])}, {esc(r['empl'])}, {esc(r['role'])})"
+            for r in chunk
+        ]
         stmt = (
             "INSERT INTO `People` (Name, Login_ID, EMPL_ID, Role)\nVALUES\n  "
             + ",\n  ".join(values_sql)
-            + "\nON DUPLICATE KEY UPDATE EMPL_ID = EMPL_ID;"
+            + "\nON DUPLICATE KEY UPDATE Name=VALUES(Name), Login_ID=VALUES(Login_ID), Role=VALUES(Role);"
         )
         stmts.append(stmt)
     return stmts
 
-def build_sql(all_rows: List[Tuple[Optional[str], Optional[str], str, str]],
-              dbname: Optional[str],
-              emit_use: bool,
-              batch: int,
-              verbose: bool) -> str:
-    header = []
-    header.append("-- Generated by build_people_inserts_positional.py")
-    header.append("SET NAMES utf8mb4;")
+
+def build_sql(all_rows: List[Dict], dbname: Optional[str],
+              emit_use: bool, batch: int) -> str:
+    header = [
+        "-- Generated by 4-build_people_inserts_positional.py",
+        "SET NAMES utf8mb4;",
+    ]
     if emit_use and dbname:
         header.append(f"USE `{dbname}`;")
-    # NOTE: This will error if the index already exists. Keep if you want strict setup,
-    # or replace with a conditional/try-catch in your migration workflow.
-    header.append("CREATE UNIQUE INDEX `uniq_people_empl_id` ON `People` (`EMPL_ID`);")
     header.append("")
     inserts = batch_insert_values(all_rows, batch_size=batch)
     return "\n".join(header + inserts) + ("\n" if inserts else "")
 
+
 def main(argv=None) -> int:
-    ap = argparse.ArgumentParser(description="Generate MySQL INSERTs for People (header-agnostic, positional parsing).")
-    ap.add_argument("--root", default=".", help="Directory to scan recursively for CSV files")
+    ap = argparse.ArgumentParser(
+        description="Generate MySQL INSERTs for People from Canvas roster CSVs.")
+    ap.add_argument("--root",    default=".", help="Directory to scan for roster CSVs")
     ap.add_argument("--outfile", default="people_inserts.sql", help="Output .sql file path")
-    ap.add_argument("--stdout", action="store_true", help="Write SQL to stdout instead of file")
-    ap.add_argument("--dbname", default="Micro-Surveys", help="DB name for USE `<db>`;")
-    ap.add_argument("--no-use", action="store_true", help="Do not emit USE `<db>`;")
-    ap.add_argument("--batch", type=int, default=500, help="Rows per INSERT batch")
+    ap.add_argument("--stdout",  action="store_true", help="Write SQL to stdout instead of file")
+    ap.add_argument("--dbname",  default="Micro-Surveys", help="DB name for USE `<db>`;")
+    ap.add_argument("--no-use",  action="store_true", help="Do not emit USE `<db>`;")
+    ap.add_argument("--batch",   type=int, default=500, help="Rows per INSERT batch")
     ap.add_argument("--verbose", action="store_true", help="Verbose logging")
     args = ap.parse_args(argv)
 
     root = Path(args.root).expanduser().resolve()
-    csvs = discover_csvs(root, args.verbose)
+    csvs = discover_roster_csvs(root)
     if not csvs:
+        print("No CSV files found under:", root, file=sys.stderr)
         return 1
 
-    all_rows: List[Tuple[Optional[str], Optional[str], str, str]] = []
+    log(f"Found {len(csvs)} CSV file(s) under {root}", args.verbose)
+
+    all_rows: List[Dict] = []
     for p in csvs:
-        all_rows.extend(read_csv_rows_positional(p, args.verbose))
+        rows = parse_roster_path(p)
+        if not rows:
+            log(f"⚠ Skipping non-roster CSV: {p.name}", args.verbose)
+            continue
+        log(f"✔ {p.name}: {len(rows)} valid row(s)", args.verbose)
+        all_rows.extend(rows)
 
     if not all_rows:
-        print("No valid rows found (need roster CSVs with Name/Login ID/SIS ID/Role columns).", file=sys.stderr)
+        print("No valid rows found (need roster CSVs with Name/Login ID/SIS ID/Role columns).",
+              file=sys.stderr)
         return 2
 
     log(f"🧮 Total rows to emit: {len(all_rows)}", args.verbose)
@@ -166,7 +94,6 @@ def main(argv=None) -> int:
         dbname=args.dbname,
         emit_use=not args.no_use,
         batch=args.batch,
-        verbose=args.verbose
     )
 
     if args.stdout:
@@ -178,6 +105,7 @@ def main(argv=None) -> int:
             f.write(sql_text)
         print(f"✅ Wrote {len(all_rows)} rows to {outpath}")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())

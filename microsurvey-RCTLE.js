@@ -51,7 +51,6 @@ var popShow = function() {
 
 // Hide popup when close button is selected
 var ClosePop = function() {
-  var container = $('container-footnote');
   $('.container-footnote').addClass( "hidden" );
 };
 

@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 2943_S3_MMIS_320_1798701A_W411
 https://erau.instructure.com/courses/196025
 
@@ -40,19 +39,3 @@ https://erau.instructure.com/courses/196020
 
 2943_S3_MKTG_510_2508344A_W411
 https://erau.instructure.com/courses/196024
-=======
-Jean-Luc Picar
-2927_S3_ACCT_312_2672923A_W411
-3121
-https://instructure.com/courses/193655/
-
-James T. Kirk
-2927_S3_WEAX_201_2491146A_W411
-2011
-https://instructure.com/courses/193682/
-
-Leonard "Bones" McCoy
-2927_S3_PHYS_142_2491146A_W411
-193680
-https://instructure.com/courses/193680/
->>>>>>> 87b978e2b25847bed113209e13b5fa6a4e2a10f2

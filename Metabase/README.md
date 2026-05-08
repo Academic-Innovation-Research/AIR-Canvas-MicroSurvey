@@ -23,12 +23,11 @@ Container configurations depend on environment variables defined in an `.env` fi
 
 
 ### Environment variables
-+ `DB_TYPE:` `mysql`
-+ `DB_NAME:` the name of the database
-+ `DB_USER:` a database user different than root
-+ `DB_PASSWORD:` a password for `DB_USER`
-+ `DB_ROOT_PASSWORD:` a password for the root user *(only for MySQL)*
-+ `DB_PORT:` use `3306` for mysql.
++ `DB_NAME` — the name of the database (e.g. `Micro-Surveys`)
++ `DB_USER` — a non-root database user (used by Metabase for read access)
++ `DB_USER_PASSWORD` — password for `DB_USER`
++ `DB_PASSWORD` — password for the MySQL root user (used by `upload_app.py` for writes)
++ `MB_JAVA_TIMEZONE` — JVM timezone for Metabase (e.g. `America/New_York`)
 
 
 ### Get started
@@ -40,7 +39,7 @@ Container configurations depend on environment variables defined in an `.env` fi
 
 ### Log In
 + [Metabase](http://localhost:3000/)
-+ [PHPMyAdmin](http://localhost:8080/)
++ [PHPMyAdmin](http://localhost:8081/)
 
 
 ### Database

@@ -1,2 +1,27 @@
+# macOS
 .DS_Store
+
+# Credentials — never commit
 Metabase/.env
+
+# Metabase application database (large binary, regenerated on first run)
+Metabase/metabase.db.mv.db
+Metabase/metabase.db.trace.db
+
+# Data pipeline — local working files with real institutional data
+data-handling-scripts/Notes.md
+data-handling-scripts/notes.txt
+data-handling-scripts/courses.csv
+data-handling-scripts/courses_enriched.csv
+data-handling-scripts/survey.csv
+data-handling-scripts/sql/
+data-handling-scripts/Enrollment/
+data-handling-scripts/Enrollment/*
+
+# Python cache
+data-handling-scripts/__pycache__/
+**/*.pyc
+
+# Docs
+Todo.md
+.agents/

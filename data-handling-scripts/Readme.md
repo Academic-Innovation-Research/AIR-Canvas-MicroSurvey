@@ -1,4 +1,4 @@
-# Survey Data → MySQL → Metabase Pipeline
+# Data Pipeline — Canvas Enrollment + Survey Data → MySQL
 
 This repository contains Python scripts that transform Canvas and Qualtrics exports into clean, deterministic SQL `INSERT` statements for loading survey data into a MySQL database. That database is connected to Metabase for BI visualization and analysis.
 
@@ -14,13 +14,16 @@ At a high level:
 2. Normalize and enrich that data into structured CSVs.
 3. Generate **SQL insert statements** for:
    - Courses
+   - People (students + instructors)
    - Enrollments
    - Survey responses
    - Survey answers
 4. Load the SQL into MySQL.
 5. Analyze everything in Metabase.
 
-No direct database writes occur in Python. Python only produces SQL.
+**Shortcut:** For enrollment data only, use the drag-and-drop web app (`upload_app.py`) to skip steps 1–4 and import directly to MySQL.
+
+No direct database writes occur in the numbered scripts. Python only produces SQL.
 
 ---
 
@@ -50,14 +53,31 @@ Follow these steps **in order**. Each script assumes the previous step completed
 
 ### 1. Capture Course Metadata (Manual)
 
-Create a file called `Notes.md` with the following information for each course:
+Create a file called `Notes.md` with one entry per course. All three formats are accepted — mix and match as needed:
 
-- **SIS ID** (from Canvas → Course Settings)
-  - Example: `2943_S3_MMIS_320_1798701A_W411`
-- **Course URL**
-  - Example: `https://erau.instructure.com/courses/196025`
+```
+# Minimal — URL first (or SIS first, either order works):
+https://erau.instructure.com/courses/201288/
+2963_S3_ECON_211_2382668A_W411
 
-This file is the authoritative input for course identity.
+# Human-readable — description line is ignored, URL and SIS are extracted:
+1) ECON 211 - Jack Patel
+https://erau.instructure.com/courses/201288/
+2963_S3_ECON_211_2382668A_W411
+```
+
+Separate each course with a blank line.
+
+- **SIS ID** — from Canvas → Course Settings → SIS ID field
+- **Canvas ID** — the numeric segment at the end of the course URL (`/courses/201288/`)
+
+**Where to save the file** (checked in this order):
+
+1. `data-handling-scripts/Notes.md` — top-level, gitignored
+2. `data-handling-scripts/Enrollment/Notes.md` — alongside roster CSVs, also gitignored
+3. `data-handling-scripts/Notes-src.md` — committed fallback/template (used automatically if neither above exists)
+
+`Notes-src.md` in this directory is a committed example you can copy and edit.
 
 ---
 
@@ -65,12 +85,11 @@ This file is the authoritative input for course identity.
 
 For each course:
 
-1. Open the course in Canvas
-2. Select **People** from the course menu
-3. Use the **Download Gradebook** bookmarklet to export the roster
-4. Rename the file using the **Canvas course ID** (last numeric segment of the URL)
-   - Example: `196025.csv`
-5. Place the file in the `Enrollment/` directory
+1. Open the course in Canvas and click **People** in the left sidebar.
+2. Click the **Canvas Roster Export** bookmarklet. The file downloads automatically as `<courseId>.csv` (e.g. `196025.csv`) — no renaming needed.
+3. Place the file in the `Enrollment/` directory.
+
+See [README.md — Canvas Roster Bookmarklet](../README.md#canvas-roster-bookmarklet) for one-time bookmarklet setup instructions.
 
 ---
 
@@ -160,10 +179,13 @@ survey.csv
 ```bash
 python3 build_survey_responses_inserts.py \
   --csv survey.csv \
-  --outfile survey_responses_inserts.sql
+  --outfile survey_responses_inserts.sql \
+  --survey-id ERAU_ASIA
 ```
 
 This creates one row per respondent per survey.
+
+**`--survey-id`** is a program-level identifier written into every `Survey_Responses` row. It lets the database hold data from multiple active survey campaigns without mixing them up. The default is `ERAU_ASIA`. Change it to a new identifier (e.g. `ERAU_WW`) whenever you are importing responses for a different survey campaign. Pick a value that is unique per campaign and consistent across all imports for that campaign.
 
 ---
 
@@ -181,14 +203,74 @@ This explodes each response into normalized question/answer rows.
 
 ## Loading Data into MySQL
 
+### First-time database setup
+
+Before importing any data into a fresh database, run `schema-setup.sql` once:
+
+```bash
+# Via mysql CLI inside Docker:
+docker exec -i metabase-mysql-1 mysql -u root -p"$MYSQL_ROOT_PASSWORD" Micro-Surveys < schema-setup.sql
+```
+
+Or import it via phpMyAdmin. This creates the `UNIQUE INDEX` on `People(EMPL_ID)` that makes re-imports idempotent. It is safe to re-run — it uses `IF NOT EXISTS`.
+
+### Routine imports
+
 Import the SQL files **in dependency order**:
 
-1. `courses_inserts.sql`
-2. `enrollment_inserts.sql`
-3. `survey_responses_inserts.sql`
-4. `survey_answers_inserts.sql`
+1. `sql/courses_inserts.sql`
+2. `sql/people_inserts.sql`
+3. `sql/enrollment_inserts.sql`
+4. `sql/survey_responses_inserts.sql`
+5. `sql/survey_answers_inserts.sql`
 
-You can use `mysql`, a GUI client, or a migration tool. Review SQL before execution.
+You can use phpMyAdmin, the `mysql` CLI, or any SQL client. Review SQL before executing.
+
+---
+
+## Drag-and-Drop Enrollment Import (Recommended Shortcut)
+
+`upload_app.py` replaces scripts 1–5 with a browser UI. It populates all four tables in one step:
+
+**Terms → Courses → People → Enrollment**
+
+### Prerequisites
+
+- Docker stack running (`cd Metabase && docker-compose up -d`)
+- `Notes.md` in place (see Step 1 above)
+- Roster CSVs exported from Canvas and named with the Canvas course ID (e.g. `201288.csv`)
+
+### Launch
+
+```bash
+cd data-handling-scripts
+python3 upload_app.py
+# open http://localhost:5001
+```
+
+No `pip install` required. The app uses Python 3.10+ stdlib only and writes to MySQL via `docker exec`.
+
+### Workflow
+
+1. The status bar at the top confirms MySQL is reachable and shows how many courses were indexed from `Notes.md`.
+2. Drag all roster CSVs onto the drop zone (drop multiple files at once).
+3. Each file gets a color-coded badge:
+   - **Green ✔** — Canvas ID matched in Notes.md; all 4 tables will be populated.
+   - **Yellow ⚠** — Not in Notes.md; only People will be inserted, Enrollment skipped.
+   - **Red ✖** — No Canvas ID found in filename; file will be skipped entirely.
+4. Enter a **Term label** in the text field (e.g. `Spring 2026` or `2026-01`). This is written to the Terms table alongside the term code from the SIS ID.
+5. Review the preview table, then click **Import to MySQL**.
+
+On success, the result panel shows row counts for all four tables. **Re-importing is safe** — enrollment rows for each course are deleted and re-inserted, so running the same files twice produces no duplicates.
+
+### Credentials
+
+The app reads `DB_PASSWORD` and `DB_NAME` from `../Metabase/.env`. The root MySQL user is used for writes (the `metabase` user is read-only).
+
+### What this does NOT handle
+
+- Survey response data (use `build_survey_responses_inserts.py` and `build_survey_answers_inserts.py`)
+- The `Course` column in the Courses table (this is a Canvas page path captured at survey time via the Qualtrics popup; it cannot be derived from a roster)
 
 ---
 

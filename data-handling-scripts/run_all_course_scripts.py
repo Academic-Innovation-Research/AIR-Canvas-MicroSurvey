@@ -4,13 +4,13 @@ Master script to run all course-related scripts in sequence.
 
 Order:
 1. 1-build_courses_csv.py                -> courses.csv
-2. 2-enrich_courses_csv.py               -> updates courses.csv with InstructorID + CntStudents
-3. 3-build_courses_inserts.py            -> courses_inserts.sql (and Terms inserts)
+2. 2-enrich_courses_csv.py               -> courses_enriched.csv (adds instructor + student count)
+3. 3-build_courses_inserts.py            -> courses_inserts.sql (and Terms inserts; prompts for term)
 4. 4-build_people_inserts_positional.py  -> people_inserts.sql
 5. 5-build_enrollment_inserts.py         -> enrollment_inserts.sql
 
 Usage:
-cd /Users/robert/Downloads/Canvas
+cd data-handling-scripts
 python3 run_all_course_scripts.py
 
 """
@@ -19,16 +19,17 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Default file/directory paths
 ROOT_DIR = Path(".").resolve()
+ENROLL_DIR = ROOT_DIR / "Enrollment"
+SQL_DIR = ROOT_DIR / "sql"
+
 COURSES_CSV = ROOT_DIR / "courses.csv"
-COURSES_ENRICHED_CSV = COURSES_CSV  # overwritten in place
-COURSES_INSERTS = ROOT_DIR / "courses_inserts.sql"
-PEOPLE_INSERTS = ROOT_DIR / "people_inserts.sql"
-ENROLLMENT_INSERTS = ROOT_DIR / "enrollment_inserts.sql"
+COURSES_ENRICHED_CSV = ROOT_DIR / "courses_enriched.csv"
+COURSES_INSERTS = SQL_DIR / "courses_inserts.sql"
+PEOPLE_INSERTS = SQL_DIR / "people_inserts.sql"
+ENROLLMENT_INSERTS = SQL_DIR / "enrollment_inserts.sql"
 
 def run_cmd(cmd_list, description=None):
-    """Run a command and exit if it fails."""
     if description:
         print(f"\n=== {description} ===")
     try:
@@ -38,33 +39,35 @@ def run_cmd(cmd_list, description=None):
         sys.exit(e.returncode)
 
 def main():
-    # 1. Build courses.csv from Notes.md
+    SQL_DIR.mkdir(exist_ok=True)
+
     run_cmd(
         ["python3", "1-build_courses_csv.py", "--root", str(ROOT_DIR), "--outfile", str(COURSES_CSV)],
         "Step 1: Building courses.csv from Notes.md"
     )
 
-    # 2. Enrich courses.csv with InstructorID and CntStudents
     run_cmd(
-        ["python3", "2-enrich_courses_csv.py", "--courses", str(COURSES_CSV), "--rosters", str(ROOT_DIR)],
-        "Step 2: Enriching courses.csv with InstructorID and CntStudents"
+        [
+            "python3", "2-enrich_courses_csv.py",
+            "--infile", str(COURSES_CSV),
+            "--enroll-dir", str(ENROLL_DIR),
+            "--outfile", str(COURSES_ENRICHED_CSV),
+        ],
+        "Step 2: Enriching courses.csv with instructor + student count"
     )
 
-    # 3. Build courses_inserts.sql (this will prompt for Terms)
     run_cmd(
         ["python3", "3-build_courses_inserts.py", "--csv", str(COURSES_ENRICHED_CSV), "--outfile", str(COURSES_INSERTS)],
-        "Step 3: Building courses_inserts.sql (will prompt for Term values)"
+        "Step 3: Building courses_inserts.sql (will prompt for Term value)"
     )
 
-    # 4. Build people_inserts.sql from rosters
     run_cmd(
-        ["python3", "4-build_people_inserts_positional.py", "--root", str(ROOT_DIR), "--outfile", str(PEOPLE_INSERTS)],
+        ["python3", "4-build_people_inserts_positional.py", "--root", str(ENROLL_DIR), "--outfile", str(PEOPLE_INSERTS)],
         "Step 4: Building people_inserts.sql"
     )
 
-    # 5. Build enrollment_inserts.sql from rosters + Notes.md
     run_cmd(
-        ["python3", "5-build_enrollment_inserts.py", "--root", str(ROOT_DIR), "--outfile", str(ENROLLMENT_INSERTS)],
+        ["python3", "5-build_enrollment_inserts.py", "--root", str(ENROLL_DIR), "--outfile", str(ENROLLMENT_INSERTS)],
         "Step 5: Building enrollment_inserts.sql"
     )
 

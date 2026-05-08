@@ -189,7 +189,10 @@ def main(argv=None) -> int:
     ap.add_argument("--stdout", action="store_true", help="Write SQL to stdout instead of file")
     ap.add_argument("--dbname", default="Micro-Surveys", help="DB name for USE `<db>`;")
     ap.add_argument("--no-use", action="store_true", help="Do not emit USE `<db>`;")
-    ap.add_argument("--survey-id", default="ERAU_ASIA", help="Constant Survey_ID value")
+    # Survey_ID is a program-level identifier written into every row — use it to distinguish
+    # responses across multiple active surveys in the database (e.g. 'ERAU_ASIA', 'ERAU_WW').
+    # Change this value whenever you are importing data for a different survey campaign.
+    ap.add_argument("--survey-id", default="ERAU_ASIA", help="Constant Survey_ID value written into every row (e.g. ERAU_ASIA, ERAU_WW)")
     ap.add_argument("--batch", type=int, default=500, help="Rows per INSERT batch")
     ap.add_argument("--emit-unique", action="store_true",
                     help="Emit CREATE UNIQUE INDEX on Survey_Responses(Response_ID)")
