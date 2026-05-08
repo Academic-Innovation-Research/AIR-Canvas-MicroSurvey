@@ -34,6 +34,8 @@ services:
       MYSQL_DATABASE: ${DB_NAME}
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_USER_PASSWORD}
+      UPLOAD_LIMIT: 256M
+      PHP_MAX_EXECUTION_TIME: 300
     ports:
       - "8081:80"
     networks:
