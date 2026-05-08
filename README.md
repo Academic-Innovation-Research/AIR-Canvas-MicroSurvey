@@ -15,12 +15,14 @@ cd data-handling-scripts
 python3 start.py
 ```
 
-`start.py` checks Docker, brings up the full stack (`docker compose up -d`), waits for MySQL to be ready, then opens both import tools in your browser automatically. No `pip install` required.
+`start.py` checks Docker, brings up the full stack (`docker compose up -d`), waits for MySQL to be ready, then opens the Dashboard in your browser automatically. No `pip install` required.
 
 | Tool | URL | Purpose |
 |---|---|---|
+| **Dashboard** | http://localhost:5010 | Landing page — links to all tools with live status |
 | Canvas Enrollment Import | http://localhost:5001 | Drag-and-drop roster CSVs → MySQL |
 | Qualtrics Survey Import | http://localhost:5002 | Drag-and-drop Qualtrics exports → MySQL |
+| SQL Export | http://localhost:5003 | Select terms → download SQL delta for another system |
 | phpMyAdmin | http://localhost:8081 | Browse and query the database directly |
 | Metabase | http://localhost:3000 | Dashboards and analytics |
 
@@ -49,8 +51,10 @@ python3 start.py
 │  Local Machine — Data Pipeline                                      │
 │                                                                     │
 │  python3 start.py                                                   │
+│  ├── :5010  dashboard.py         (Dashboard)                        │
 │  ├── :5001  upload_app.py        (Enrollment Import)                │
-│  └── :5002  survey_upload_app.py (Survey Import)                    │
+│  ├── :5002  survey_upload_app.py (Survey Import)                    │
+│  └── :5003  export_app.py        (SQL Export)                       │
 │                                                                     │
 │  Both communicate with MySQL via: docker exec mysql-container mysql │
 └──────────────────────────────┬──────────────────────────────────────┘
@@ -104,7 +108,9 @@ Metabase connects to MySQL
 | Roster bookmarklet | `bookmarklet/canvas-roster.js` | Exports Canvas People page as a named CSV |
 | Enrollment import | `data-handling-scripts/upload_app.py` | Drag-and-drop web app, port 5001 |
 | Survey import | `data-handling-scripts/survey_upload_app.py` | Drag-and-drop web app, port 5002 |
-| Launcher | `data-handling-scripts/start.py` | Starts Docker stack + both import tools |
+| SQL export | `data-handling-scripts/export_app.py` | Term-scoped SQL delta export, port 5003 |
+| Dashboard | `data-handling-scripts/dashboard.py` | Landing page with live status indicators, port 5010 |
+| Launcher | `data-handling-scripts/start.py` | Starts Docker stack + all four tools; opens dashboard |
 | CLI pipeline | `data-handling-scripts/1–5-*.py` | Generate SQL files for inspection before import |
 | Docker stack | `Metabase/docker-compose.yml` | MySQL 8 + phpMyAdmin + Metabase |
 
@@ -262,6 +268,12 @@ Surveys (1) ──────────────────── (N) Sur
 
 ## Import Tools
 
+### Dashboard — localhost:5010
+
+The Dashboard is the single entry point opened automatically by `start.py`. It shows live status indicators for all tools and the database connection, and provides direct links to each tool. You do not need to remember any other URLs.
+
+---
+
 ### Canvas Enrollment Import — localhost:5001
 
 Handles: **Terms → Courses → People → Enrollment**
@@ -312,6 +324,25 @@ The three-row Qualtrics header (machine names → human labels → JSON ImportId
 **Idempotency:** `Response_ID` (the Qualtrics-assigned identifier) is the primary key of `Survey_Responses`. Before importing, the tool queries all existing `Response_ID`s for the selected survey and skips any that are already present. Recurring surveys can be exported and re-imported each term without manual filtering.
 
 **Answer mapping:** Only questions with a row in `Survey_Questions` for the selected survey get answers inserted. Questions in the CSV that have no DB entry are silently skipped. This means you can add questions to an existing survey later without breaking past imports.
+
+---
+
+### SQL Export — localhost:5003
+
+Generates a self-contained SQL file you can import into any other MySQL instance (e.g. a production database) to bring it up to date for the selected terms.
+
+**Workflow:**
+1. Check the terms you want to export (the page shows course/enrollment/response counts per term)
+2. Click **Download SQL**
+3. Import the downloaded `.sql` file into the target database via phpMyAdmin or the `mysql` CLI
+
+**What the SQL includes:**
+- `INSERT … ON DUPLICATE KEY UPDATE` for Terms, Courses, People, and Enrollment
+- `INSERT IGNORE` for Survey_Responses
+- Idempotent Survey_Answers inserts that skip any `Response_ID` already present on the target
+- Schema guards at the top — if the target database is missing columns added after its initial setup, they are added automatically before any data is inserted
+
+The output is safe to import multiple times. Re-importing the same export produces no duplicates.
 
 ---
 
@@ -555,9 +586,11 @@ AIR-Canvas-MicroSurvey/
 │
 ├── data-handling-scripts/
 │   │
-│   ├── start.py                         ★ Run this first — Docker + MySQL + both import tools
+│   ├── start.py                         ★ Run this first — Docker + MySQL + all four tools + opens dashboard
+│   ├── dashboard.py                     Landing page with live status indicators (port 5010)
 │   ├── upload_app.py                    Canvas Enrollment Import web app (port 5001)
 │   ├── survey_upload_app.py             Qualtrics Survey Import web app (port 5002)
+│   ├── export_app.py                    Term-scoped SQL delta export (port 5003)
 │   ├── pipeline.py                      Shared parsing logic (imported by upload_app.py and CLI scripts)
 │   │
 │   ├── 1-build_courses_csv.py           Notes.md → courses.csv
@@ -609,7 +642,8 @@ This creates the unique index on `People(EMPL_ID)` that makes re-imports idempot
 
 | Symptom | Cause | Fix |
 |---|---|---|
-| `localhost:5001` or `:5002` not responding | Servers not started | Run `python3 start.py` from `data-handling-scripts/` |
+| Dashboard (`localhost:5010`) not loading | Servers not started | Run `python3 start.py` from `data-handling-scripts/` |
+| `localhost:5001`, `:5002`, or `:5003` not responding | One tool crashed after start | Restart `python3 start.py`; check terminal output for the failing script |
 | `mysql-container is unhealthy` on `docker compose up` | Stale health status after force reboot | `docker compose down && docker compose up -d` |
 | Import completes but count is 0 | All Response_IDs already in DB | Normal for re-imports. New data will show non-zero. |
 | Yellow ⚠ badge on roster file | Canvas ID not found in Notes.md | Add the course URL + SIS ID to Notes.md |

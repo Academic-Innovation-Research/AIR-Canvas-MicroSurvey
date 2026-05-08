@@ -10,10 +10,9 @@ What it does:
   1. Checks that Docker is running (prompts you to start it if not)
   2. Starts the Metabase Docker stack (MySQL + phpMyAdmin + Metabase)
   3. Waits for MySQL to accept connections
-  4. Opens both import tools in your browser:
-       http://localhost:5001  — Canvas Enrollment Import
-       http://localhost:5002  — Qualtrics Survey Import
-  5. Runs both servers (Ctrl+C to stop both)
+  4. Opens the dashboard in your browser:
+       http://localhost:5010  — Dashboard (links to all tools)
+  5. Runs all four servers (Ctrl+C to stop)
 """
 
 import os
@@ -27,10 +26,14 @@ from pathlib import Path
 
 HERE         = Path(__file__).parent
 METABASE_DIR = HERE.parent / "Metabase"
+PORT_DASH    = int(os.environ.get("DASHBOARD_PORT",     5010))
 PORT_ENROLL  = int(os.environ.get("UPLOAD_PORT",        5001))
 PORT_SURVEY  = int(os.environ.get("SURVEY_UPLOAD_PORT", 5002))
+PORT_EXPORT  = int(os.environ.get("EXPORT_PORT",        5003))
+URL_DASH     = f"http://localhost:{PORT_DASH}"
 URL_ENROLL   = f"http://localhost:{PORT_ENROLL}"
 URL_SURVEY   = f"http://localhost:{PORT_SURVEY}"
+URL_EXPORT   = f"http://localhost:{PORT_EXPORT}"
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -113,10 +116,12 @@ def main():
     container = os.environ.get("MYSQL_CONTAINER") or dotenv.get("MYSQL_CONTAINER") or "mysql-container"
     password  = os.environ.get("DB_PASSWORD")     or dotenv.get("DB_PASSWORD")     or "password"
 
-    print(f"\nAIR Canvas MicroSurvey — Import Tools")
+    print(f"\nAIR Canvas MicroSurvey")
     print("=" * 48)
+    print(f"  Dashboard         : {URL_DASH}  ← open this")
     print(f"  Enrollment Import : {URL_ENROLL}")
     print(f"  Survey Import     : {URL_SURVEY}")
+    print(f"  SQL Export        : {URL_EXPORT}")
     print(f"  phpMyAdmin        : http://localhost:8081")
     print(f"  Metabase          : http://localhost:3000")
 
@@ -152,25 +157,24 @@ def main():
     else:
         print("\n⚠  MySQL did not become ready in 60 s — proceeding anyway.")
 
-    # 4. Start both servers + open browsers
-    print(f"\n[4/4] Starting import tools…")
+    # 4. Start all servers + open dashboard
+    print(f"\n[4/4] Starting tools…")
 
     procs = [
-        subprocess.Popen([sys.executable, str(HERE / "upload_app.py")],      cwd=str(HERE)),
+        subprocess.Popen([sys.executable, str(HERE / "dashboard.py")],        cwd=str(HERE)),
+        subprocess.Popen([sys.executable, str(HERE / "upload_app.py")],        cwd=str(HERE)),
         subprocess.Popen([sys.executable, str(HERE / "survey_upload_app.py")], cwd=str(HERE)),
+        subprocess.Popen([sys.executable, str(HERE / "export_app.py")],        cwd=str(HERE)),
     ]
 
     def _open_browsers():
         time.sleep(1.5)
-        webbrowser.open(URL_ENROLL)
-        time.sleep(0.3)
-        webbrowser.open(URL_SURVEY)
+        webbrowser.open(URL_DASH)
 
     threading.Thread(target=_open_browsers, daemon=True).start()
 
-    print(f"\n✔  Both tools running. Press Ctrl+C to stop.\n")
-    print(f"  Canvas Enrollment Import → {URL_ENROLL}")
-    print(f"  Qualtrics Survey Import  → {URL_SURVEY}\n")
+    print(f"\n✔  All tools running. Press Ctrl+C to stop.\n")
+    print(f"  Dashboard → {URL_DASH}\n")
 
     try:
         for p in procs:

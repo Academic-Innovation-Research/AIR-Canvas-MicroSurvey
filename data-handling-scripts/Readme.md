@@ -21,7 +21,7 @@ At a high level:
 4. Load the SQL into MySQL.
 5. Analyze everything in Metabase.
 
-**Shortcut:** For enrollment data only, use the drag-and-drop web app (`upload_app.py`) to skip steps 1–4 and import directly to MySQL.
+**Shortcut:** Run `python3 start.py` to launch all tools at once. The Dashboard (`http://localhost:5010`) links to the drag-and-drop enrollment import, survey import, and SQL export — no command-line steps needed for routine imports.
 
 No direct database writes occur in the numbered scripts. Python only produces SQL.
 
@@ -244,11 +244,17 @@ You can use phpMyAdmin, the `mysql` CLI, or any SQL client. Review SQL before ex
 
 ```bash
 cd data-handling-scripts
+python3 start.py
+```
+
+`start.py` starts the full Docker stack, waits for MySQL, then opens the Dashboard at `http://localhost:5010` automatically. From there, click **Enrollment Import** to reach the upload tool. No `pip install` required — all tools use Python 3.10+ stdlib only and write to MySQL via `docker exec`.
+
+To run the enrollment tool on its own without the full stack:
+
+```bash
 python3 upload_app.py
 # open http://localhost:5001
 ```
-
-No `pip install` required. The app uses Python 3.10+ stdlib only and writes to MySQL via `docker exec`.
 
 ### Workflow
 
