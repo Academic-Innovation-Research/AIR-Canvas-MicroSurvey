@@ -8,14 +8,21 @@ Built for ERAU Worldwide. Operates across 1–30 courses per survey run.
 
 ## Quick Start
 
-Docker must be running. Everything else is automated.
+Two prerequisites, then everything else is automated:
+
+1. **Docker installed** — `start.py` will launch Docker Desktop itself if it isn't running.
+2. **`Metabase/.env` present** — gitignored, so it is never in a fresh clone. Copy it from a machine that has it, or `cd Metabase && cp env.sample .env` and set the credentials. `start.py` checks for it first and stops with instructions if it is missing.
 
 ```bash
 cd data-handling-scripts
 python3 start.py
 ```
 
+On the very first run this pulls three Docker images (MySQL, phpMyAdmin, Metabase) and can take several minutes; pull progress prints as it goes. Subsequent runs start in seconds.
+
 `start.py` checks Docker, brings up the full stack (`docker compose up -d`), waits for MySQL to be ready, then opens the Dashboard in your browser automatically. No `pip install` required.
+
+**That command is the only one you need to remember.** Everything after it happens in the browser, from the Dashboard.
 
 | Tool | URL | Purpose |
 |---|---|---|
@@ -25,6 +32,48 @@ python3 start.py
 | SQL Export | http://localhost:5003 | Select terms → download SQL delta for another system |
 | phpMyAdmin | http://localhost:8081 | Browse and query the database directly |
 | Metabase | http://localhost:3000 | Dashboards and analytics |
+
+---
+
+## Running a New Micro-Survey
+
+The full per-term procedure. Steps 3–6 are browser-only; **step 1 is the single manual file edit in the whole process**, and it is the step most likely to be forgotten between terms.
+
+### 1. Update `Notes.md` — the only non-browser step
+
+`data-handling-scripts/Notes.md` maps each Canvas course ID to its SIS ID and term code. It is gitignored, so it does **not** exist in a fresh clone, and it still contains the *previous* term's courses if you last used it a term ago. Edit it before anything else. Format is in [Notes.md Format](#notesmd-format).
+
+> **⚠ The stale-fallback trap.** If `Notes.md` is missing, the tools silently fall back to the committed `Notes-src.md` (see `pipeline.py:27` `find_notes`). The Enrollment Import page will still show a green status line reading *"Notes.md found — 14 course(s) indexed"* — but those are the **example courses from term 2943**, not yours. A green indicator is not confirmation that your courses are loaded. Always check that the course names on the file badges are the ones you expect.
+
+### 2. Deploy or confirm the Canvas popup
+
+`microsurvey.js` is pasted into **Canvas Admin → Themes → JavaScript**. Confirm `surveyURL` points at the new Qualtrics survey and `popCrs = 1` so the Canvas ID rides along in the response. See [Canvas Popup Configuration](#canvas-popup-configuration).
+
+### 3. Start the stack
+
+```bash
+cd data-handling-scripts && python3 start.py
+```
+
+The Dashboard opens by itself at localhost:5010. Every remaining step is a link from that page.
+
+### 4. Export the rosters from Canvas
+
+Per course: **People** tab → let the roster finish loading → click the **Canvas Roster Export** bookmarklet. Saves as `<CanvasID>.csv`. Do not rename — the filename is how the importer identifies the course.
+
+### 5. Import enrollment → **Enrollment Import** (localhost:5001)
+
+Drop all roster CSVs at once, enter the Term label, review the badges, click **Import to MySQL**. Populates Terms → Courses → People → Enrollment. Details and badge meanings: [Canvas Enrollment Import](#canvas-enrollment-import--localhost5001).
+
+### 6. Import responses → **Survey Import** (localhost:5002)
+
+Once Qualtrics has responses, export the CSV (either format) and drop it in. Populates Survey_Responses → Survey_Answers.
+
+Steps 5 and 6 are independent and both re-runnable — you can import enrollment early and pull survey responses repeatedly as they accumulate.
+
+### 7. (Optional) Push to another database → **SQL Export** (localhost:5003)
+
+Check the terms, download the SQL delta, import it into the production instance.
 
 ---
 
@@ -111,7 +160,8 @@ Metabase connects to MySQL
 | SQL export | `data-handling-scripts/export_app.py` | Term-scoped SQL delta export, port 5003 |
 | Dashboard | `data-handling-scripts/dashboard.py` | Landing page with live status indicators, port 5010 |
 | Launcher | `data-handling-scripts/start.py` | Starts Docker stack + all four tools; opens dashboard |
-| CLI pipeline | `data-handling-scripts/1–5-*.py` | Generate SQL files for inspection before import |
+| Course metadata | `data-handling-scripts/Notes.md` | Hand-maintained per term — maps Canvas IDs to SIS IDs and term codes |
+| Shared parsing | `data-handling-scripts/pipeline.py` | `find_notes()` / `parse_notes_md()`, used by the import tools |
 | Docker stack | `Metabase/docker-compose.yml` | MySQL 8 + phpMyAdmin + Metabase |
 
 ---
@@ -279,8 +329,10 @@ The Dashboard is the single entry point opened automatically by `start.py`. It s
 Handles: **Terms → Courses → People → Enrollment**
 
 **Requirements before using:**
-- `Notes.md` in `data-handling-scripts/` or `data-handling-scripts/Enrollment/` (see format below)
+- `Notes.md` in `data-handling-scripts/` or `data-handling-scripts/Enrollment/` (see format below), **updated for the current term**
 - Canvas roster CSVs exported via the bookmarklet, named `<CanvasID>.csv`
+
+The page shows a `Notes.md` status line on load, served by the `/notes-status` route (`upload_app.py:540`). Read it as *"some notes file was found and N courses were indexed"* — it does not distinguish your `Notes.md` from the `Notes-src.md` fallback, so it can report a confident green count for last term's courses. The per-file badges in step 2 are the real check.
 
 **Workflow:**
 1. Drop one or more roster CSVs onto the drop zone (multiple files at once is fine)
@@ -403,10 +455,14 @@ javascript:(async()=>{const S=ms=>new Promise(r=>setTimeout(r,ms));try{const T=(
 
 `Notes.md` tells the enrollment import tool how to fill the `Courses` and `Terms` tables. The file is gitignored — copy `Notes-src.md` as a starting point.
 
-**Where to save it** (checked in this order):
+This is the one file you maintain by hand each term. There is no editor for it in the Dashboard or the Enrollment Import page; both only read it.
+
+**Where to save it** (checked in this order — `find_notes` in `pipeline.py:27`):
 1. `data-handling-scripts/Notes.md`
 2. `data-handling-scripts/Enrollment/Notes.md`
-3. `data-handling-scripts/Notes-src.md` (committed fallback)
+3. `data-handling-scripts/Notes-src.md` (committed fallback — **contains stale example data from term 2943**)
+
+Because of entry 3, a missing `Notes.md` never produces an error. It produces a successful-looking import of the wrong courses. Create `Notes.md` explicitly rather than relying on the fallback.
 
 **Format** — separate entries with a blank line; URL and SIS ID can appear in either order; a human-readable description line is ignored:
 
@@ -442,15 +498,22 @@ docker compose up -d
 
 ### Environment variables (`Metabase/.env`)
 
-| Variable | Example | Purpose |
+Full list is in `env.sample`. The ones that matter:
+
+| Variable | `env.sample` default | Purpose |
 |---|---|---|
 | `DB_NAME` | `Micro-Surveys` | Database name |
-| `DB_USER` | `admin` | Non-root user (Metabase read access) |
-| `DB_USER_PASSWORD` | `…` | Password for `DB_USER` |
-| `DB_PASSWORD` | `…` | MySQL root password (used by import tools for writes) |
+| `DB_USER` | `metabase` | Non-root user (Metabase read access) |
+| `DB_USER_PASSWORD` | `metabase` | Password for `DB_USER` |
+| `DB_PASSWORD` | `password` | MySQL **root** password — used by the import tools for writes and by the MySQL healthcheck |
 | `MB_JAVA_TIMEZONE` | `America/New_York` | Metabase JVM timezone |
+| `MB_PORT` / `DB_PORT` | `3000` / `3306` | Host ports for Metabase and MySQL |
 
 The import tools read `.env` automatically from `../Metabase/.env` relative to the scripts directory. No environment setup is needed beyond creating the file.
+
+> **The file is required, not optional.** `docker-compose.yml` substitutes these variables directly. Without `.env`, Compose fills every one with an empty string, MySQL refuses to initialise on a blank root password, and the container ends up unhealthy — a failure that surfaces well after the step that caused it. `start.py` now checks for the file before touching Docker.
+>
+> Change `DB_PASSWORD` after `db-data` already exists and MySQL will reject the new password: the root credential lives in the volume, set at first initialisation. To genuinely reset it, `docker compose down -v` (**destroys all data**) and re-import.
 
 ### Services
 
@@ -472,43 +535,13 @@ docker compose up -d
 
 ---
 
-## CLI Pipeline (SQL-file approach)
+## Superseded: the numbered CLI scripts
 
-An alternative to the drag-and-drop tools. The numbered scripts generate SQL files you can inspect and execute manually. Use this when you want a full audit trail before anything touches the database.
+The numbered scripts (`1-build_courses_csv.py` … `5-build_enrollment_inserts.py`, `run_all_course_scripts.py`) and the two `build_survey_*_inserts.py` scripts predate the browser tools. They generated `.sql` files you then imported by hand through phpMyAdmin.
 
-```bash
-cd data-handling-scripts
+**They are no longer part of the process and their instructions have been removed from this README.** The Enrollment Import and Survey Import tools do the same work, write directly to MySQL, and show a preview first. The scripts are still in the repository because `pipeline.py` — which the web tools *do* use — shares parsing helpers with them.
 
-# 1. Generate courses.csv from Notes.md
-python3 1-build_courses_csv.py
-
-# 2. Enrich with instructor name and student count from rosters
-python3 2-enrich_courses_csv.py --infile courses.csv --enroll-dir Enrollment --outfile courses_enriched.csv
-
-# 3. Generate Terms + Courses SQL
-python3 3-build_courses_inserts.py --csv courses_enriched.csv --outfile sql/courses_inserts.sql
-
-# 4. Generate People SQL
-python3 4-build_people_inserts_positional.py
-
-# 5. Generate Enrollment SQL
-python3 5-build_enrollment_inserts.py --root . --outfile sql/enrollment_inserts.sql
-
-# Or run 1-5 in one shot:
-python3 run_all_course_scripts.py
-
-# Survey responses and answers (legacy, pre-dates the drag-and-drop tool)
-python3 build_survey_responses_inserts.py --csv survey.csv --survey-id ERAU_ASIA --outfile sql/survey_responses_inserts.sql
-python3 build_survey_answers_inserts.py   --csv survey.csv --outfile sql/survey_answers_inserts.sql
-```
-
-Generated files go to `data-handling-scripts/sql/`. Import them in dependency order via phpMyAdmin or the `mysql` CLI:
-
-1. `courses_inserts.sql`
-2. `people_inserts.sql`
-3. `enrollment_inserts.sql`
-4. `survey_responses_inserts.sql`
-5. `survey_answers_inserts.sql`
+Do not follow older instructions that tell you to create an `Enrollment/` directory, run the numbered scripts in sequence, or import files from `sql/`. Neither directory exists in a fresh clone, both are gitignored, and nothing in the current process creates or reads them.
 
 ---
 
@@ -518,11 +551,11 @@ Generated files go to `data-handling-scripts/sql/`. Import them in dependency or
 
 Every Python script runs on the standard library only. No `pip install`, no virtual environments, no version conflicts. The tools run wherever Python 3.10+ and Docker are present. `requirements.txt` exists but documents this explicitly — it lists no packages.
 
-### SQL is inspectable before it runs
+### Nothing is written without a preview
 
-The numbered CLI scripts (1–5) produce SQL files, not database writes. A person can open the `.sql` file, read the `INSERT` statements, and verify the data looks right before running anything against MySQL. This catches encoding problems, wrong course IDs, and mapping errors before they land in the database.
+Both import tools parse the dropped files, show what they found, and wait. The Enrollment Import shows a per-file badge and a preview table; the Survey Import shows the detected format and counts of new vs. already-imported responses. Nothing reaches MySQL until you click Import.
 
-The drag-and-drop tools (`upload_app.py`, `survey_upload_app.py`) bypass this step intentionally — they are the fast path for routine imports where you trust the source data. The preview step in both tools partially substitutes for the SQL-inspection step.
+This replaces the older design, where the numbered scripts wrote `.sql` files for you to read before executing them by hand. The preview is faster and harder to skip.
 
 ### Writes go through `docker exec`
 
@@ -556,9 +589,9 @@ Similarly, the enrollment import tool does not require roster files to be named 
 
 The Canvas roster bookmarklet names the export file `<CanvasID>.csv`. The enrollment import reads the Canvas ID from the filename. This design means there is never a manual "what course does this file belong to?" mapping step. The file name is the primary key.
 
-### One concern per script
+### One tool per concern
 
-Each numbered script in the CLI pipeline does exactly one thing and produces one output file. This makes it easy to re-run just the broken step when something goes wrong, and easy to understand what each script does by reading its name.
+Each web app owns one stage of the pipeline and one port: enrollment (5001), survey responses (5002), export (5003). A failure is isolated to one tool, and `start.py` can restart everything without any of them needing to know about the others.
 
 ### Comments are for surprises
 
@@ -591,38 +624,28 @@ AIR-Canvas-MicroSurvey/
 │   ├── upload_app.py                    Canvas Enrollment Import web app (port 5001)
 │   ├── survey_upload_app.py             Qualtrics Survey Import web app (port 5002)
 │   ├── export_app.py                    Term-scoped SQL delta export (port 5003)
-│   ├── pipeline.py                      Shared parsing logic (imported by upload_app.py and CLI scripts)
+│   ├── pipeline.py                      Shared parsing logic — find_notes(), parse_notes_md()
 │   │
-│   ├── 1-build_courses_csv.py           Notes.md → courses.csv
-│   ├── 2-enrich_courses_csv.py          + instructor/count → courses_enriched.csv
-│   ├── 3-build_courses_inserts.py       → sql/courses_inserts.sql
-│   ├── 4-build_people_inserts_positional.py   → sql/people_inserts.sql
-│   ├── 5-build_enrollment_inserts.py    → sql/enrollment_inserts.sql
-│   ├── build_survey_responses_inserts.py → sql/survey_responses_inserts.sql (legacy CLI)
-│   ├── build_survey_answers_inserts.py  → sql/survey_answers_inserts.sql  (legacy CLI)
-│   ├── run_all_course_scripts.py        Runs scripts 1–5 in sequence
+│   ├── Notes.md                         ★ (gitignored) YOU MAINTAIN THIS — course metadata for the current term
+│   ├── Notes-src.md                     Committed example, term 2943 — a template, not current data
 │   │
 │   ├── schema-setup.sql                 One-time DB setup (unique index on People.EMPL_ID)
 │   ├── requirements.txt                 No packages listed — stdlib only
-│   ├── Notes-src.md                     Committed example — copy to Notes.md or Enrollment/Notes.md
 │   │
-│   ├── Enrollment/                      Drop Canvas roster CSVs here
-│   │   ├── Notes.md                     (gitignored) course metadata for current import
-│   │   └── <CanvasID>.csv              e.g. 201288.csv, exported by bookmarklet
-│   │
-│   └── sql/                             Generated SQL output — inspect before importing
-│       ├── courses_inserts.sql
-│       ├── people_inserts.sql
-│       ├── enrollment_inserts.sql
-│       ├── survey_responses_inserts.sql
-│       └── survey_answers_inserts.sql
+│   └── (superseded — see "Superseded: the numbered CLI scripts")
+│       1-build_courses_csv.py, 2-enrich_courses_csv.py,
+│       3-build_courses_inserts.py, 4-build_people_inserts_positional.py,
+│       5-build_enrollment_inserts.py, run_all_course_scripts.py,
+│       build_survey_responses_inserts.py, build_survey_answers_inserts.py
 │
 └── Metabase/
     ├── docker-compose.yml               MySQL 8 + phpMyAdmin + Metabase
-    ├── .env                             (gitignored) credentials and config
+    ├── .env                             ★ (gitignored) credentials — required; stack will not start without it
     ├── env.sample                       Template for .env
     └── README.md                        Docker-specific documentation
 ```
+
+**Not in a fresh clone.** `Metabase/.env`, `data-handling-scripts/Notes.md`, `Enrollment/`, and `sql/` are all gitignored. The first two you must supply. The last two belong to the superseded pipeline and nothing in the current process creates or reads them.
 
 ---
 
@@ -642,11 +665,17 @@ This creates the unique index on `People(EMPL_ID)` that makes re-imports idempot
 
 | Symptom | Cause | Fix |
 |---|---|---|
+| `✖ Metabase/.env not found` at startup | Gitignored file absent — normal on a new machine or fresh clone | Copy `.env` from the machine that has it, or `cd Metabase && cp env.sample .env` and set credentials |
+| `variable is not set. Defaulting to a blank string` warnings from Compose | Same cause — `.env` missing or in the wrong directory | It must be `Metabase/.env`, beside `docker-compose.yml` |
+| `TimeoutExpired: 'docker compose up -d' timed out` | First run pulling three images against too short a timeout | Fixed in `start.py` — the compose step now allows 15 min (`COMPOSE_TIMEOUT`). To pull manually first: `cd Metabase && docker compose pull` |
+| Stack starts but `mysql-container` is unhealthy on a **first** run | Blank `MYSQL_ROOT_PASSWORD` from a missing `.env` at initialisation — the empty credential is baked into the volume | `docker compose down -v` (destroys the empty DB), fix `.env`, `docker compose up -d` |
 | Dashboard (`localhost:5010`) not loading | Servers not started | Run `python3 start.py` from `data-handling-scripts/` |
 | `localhost:5001`, `:5002`, or `:5003` not responding | One tool crashed after start | Restart `python3 start.py`; check terminal output for the failing script |
 | `mysql-container is unhealthy` on `docker compose up` | Stale health status after force reboot | `docker compose down && docker compose up -d` |
 | Import completes but count is 0 | All Response_IDs already in DB | Normal for re-imports. New data will show non-zero. |
 | Yellow ⚠ badge on roster file | Canvas ID not found in Notes.md | Add the course URL + SIS ID to Notes.md |
+| Status reads "Notes.md found — 14 course(s) indexed" but badges show unfamiliar course names | No `Notes.md`; the tools fell back to the committed `Notes-src.md` from term 2943 | Create `data-handling-scripts/Notes.md` with the current term's courses |
+| Import succeeds but Metabase shows last term's courses | Same stale-fallback cause as above | As above, then re-import — Courses use `ON DUPLICATE KEY UPDATE`, so corrected rows overwrite |
 | Red ✖ badge on roster file | No 4+ digit number in filename | Rename file to `<CanvasID>.csv` |
 | "No data rows found" in survey import | Wrong file format or not a Qualtrics export | Check that the file is a Qualtrics CSV export, not a manual spreadsheet |
 | Metabase shows no data after import | Metabase cache | Browse to the question/dashboard and click the refresh icon |

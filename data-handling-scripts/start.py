@@ -30,6 +30,7 @@ PORT_DASH    = int(os.environ.get("DASHBOARD_PORT",     5010))
 PORT_ENROLL  = int(os.environ.get("UPLOAD_PORT",        5001))
 PORT_SURVEY  = int(os.environ.get("SURVEY_UPLOAD_PORT", 5002))
 PORT_EXPORT  = int(os.environ.get("EXPORT_PORT",        5003))
+COMPOSE_TIMEOUT = int(os.environ.get("COMPOSE_TIMEOUT", 900))   # cold image pull, seconds
 URL_DASH     = f"http://localhost:{PORT_DASH}"
 URL_ENROLL   = f"http://localhost:{PORT_ENROLL}"
 URL_SURVEY   = f"http://localhost:{PORT_SURVEY}"
@@ -52,10 +53,12 @@ def _load_dotenv() -> dict:
     return env
 
 
-def _run(*args, cwd=None, capture=True):
+def _run(*args, cwd=None, capture=True, timeout=30):
+    # timeout is per-call: quick probes keep the 30 s default, but image pulls
+    # (docker compose up on a cold cache) need minutes, not seconds.
     return subprocess.run(
         list(args), capture_output=capture,
-        cwd=str(cwd) if cwd else None, timeout=30,
+        cwd=str(cwd) if cwd else None, timeout=timeout,
     )
 
 
@@ -125,6 +128,18 @@ def main():
     print(f"  phpMyAdmin        : http://localhost:8081")
     print(f"  Metabase          : http://localhost:3000")
 
+    # 0. Credentials. Without .env, compose substitutes blank strings for every
+    #    variable and MySQL refuses to initialise on an empty root password —
+    #    which surfaces much later as an unhealthy container, so check up front.
+    env_path = METABASE_DIR / ".env"
+    if not env_path.exists():
+        print(f"\n✖  {env_path} not found.")
+        print("   The Docker stack cannot start without it: DB_NAME, DB_USER,")
+        print("   and DB_PASSWORD would all be substituted as empty strings.")
+        print(f"   Copy it from the system that has it, or start from the template:")
+        print(f"     cd {METABASE_DIR} && cp env.sample .env   # then edit credentials")
+        sys.exit(1)
+
     # 1. Docker
     print("\n[1/4] Docker")
     if not _docker_running():
@@ -137,12 +152,25 @@ def main():
 
     # 2. Docker stack
     print("\n[2/4] Starting Docker stack (MySQL + phpMyAdmin + Metabase)…")
+    print("  First run pulls three images — this can take several minutes.")
+    # Output is streamed, not captured, so pull progress is visible while waiting.
     for compose_cmd in (["docker", "compose"], ["docker-compose"]):
-        r = _run(*compose_cmd, "up", "-d", cwd=METABASE_DIR)
+        try:
+            r = _run(*compose_cmd, "up", "-d", cwd=METABASE_DIR,
+                     capture=False, timeout=COMPOSE_TIMEOUT)
+        except FileNotFoundError:
+            continue          # this compose variant isn't installed; try the next
+        except subprocess.TimeoutExpired:
+            print(f"\n✖  '{' '.join(compose_cmd)} up -d' exceeded "
+                  f"{COMPOSE_TIMEOUT // 60} minutes.")
+            print("   A slow image pull is the usual cause. Run it directly to watch:")
+            print(f"     cd {METABASE_DIR} && docker compose up -d")
+            sys.exit(1)
         if r.returncode == 0:
             break
     else:
-        print(f"\n✖  docker compose failed:\n{r.stderr.decode()}")
+        print("\n✖  docker compose failed. Run it directly to see the error:")
+        print(f"     cd {METABASE_DIR} && docker compose up -d")
         sys.exit(1)
     print("  Stack is up. ✔")
 
