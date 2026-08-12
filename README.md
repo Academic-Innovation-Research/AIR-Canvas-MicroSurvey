@@ -749,6 +749,39 @@ docker exec mysql-container sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot
 
 Production already carries the `uniq_people_empl_id` index, so a restored database needs nothing further. The script remains for the case where you are working against a database that lacks it. It is safe to re-run — it uses `CREATE UNIQUE INDEX IF NOT EXISTS`.
 
+### Restoring additional databases (SPOTS)
+
+The production server hosts more than `Micro-Surveys`. A full-server dump already contains them, so no second pull is needed — extract and restore each one:
+
+```bash
+./ops/extract-database.sh backups/db.sql.gz SPOTS
+./ops/restore-local-mysql.sh backups/SPOTS-only-<timestamp>.sql.gz
+```
+
+Two things bite on databases that contain **views**, and both are handled or documented rather than mysterious:
+
+**Adminer emits an invalid stub for views it cannot introspect.** It dumps each view twice — first a `CREATE TABLE` placeholder so dependants resolve, then a `DROP TABLE` plus the real `CREATE VIEW`. When column introspection fails it writes `CREATE TABLE \`x\` ();`, an empty column list that is not valid SQL and aborts the restore. `restore-local-mysql.sh` rewrites these stubs with one throwaway column; the real definition replaces them moments later.
+
+**Views carry production's `DEFINER`.** SPOTS' views are defined `DEFINER=\`admin\`@\`%\` SQL SECURITY DEFINER`, meaning they execute with that account's privileges. If the account does not exist locally, every read fails:
+
+```
+ERROR 1449 (HY000): The user specified as a definer ('admin'@'%') does not exist
+```
+
+Create it locally and grant the new database to Metabase, which the container init only granted `Micro-Surveys`:
+
+```bash
+docker exec mysql-container sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot -e "
+  CREATE USER IF NOT EXISTS \"admin\"@\"%\" IDENTIFIED BY \"admin\";
+  GRANT SELECT ON \`SPOTS\`.* TO \"admin\"@\"%\";
+  GRANT SELECT ON \`SPOTS\`.* TO \"metabase\"@\"%\";
+  FLUSH PRIVILEGES;"'
+```
+
+The local `admin` password is arbitrary — nothing authenticates as it. The account only needs to *exist*, with rights on the underlying tables, for `SQL SECURITY DEFINER` views to resolve.
+
+> **If a restore fails partway, drop the database before retrying.** A half-applied dump leaves view stubs as real tables, and the retry then fails with `ERROR 1347: 'x' is not VIEW`. `DROP DATABASE \`SPOTS\`` and restore again from clean.
+
 ### Handling dump files
 
 `backups/` is gitignored. Treat its contents as sensitive:
@@ -875,6 +908,10 @@ Making this routine rather than an expedition means migrating the application da
 | Metabase can't reach MySQL on `localhost` | Metabase connects from inside its own container, where `localhost` is Metabase itself | Use host `db`, the Compose service name on `app-network` |
 | Imported app DB won't boot | Source came from a newer Metabase than this instance; migration is forward-only | Pin `Metabase/docker-compose.yml` to production's version. `import-metabase-h2.sh` rolls back automatically |
 | H2 file size differs wildly between machines | H2 compacts its MVStore on clean shutdown — 60 MB running vs 12 MB stopped is the *same* database | Compare `sha256sum`, taken in the same state; never compare sizes across running/stopped |
+| Restore aborts: `ERROR 1064 … near ')'` | Adminer wrote an empty view stub, `CREATE TABLE \`x\` ();` | Handled by `restore-local-mysql.sh`. Restoring by hand? Give the stub a throwaway column |
+| Restore aborts: `ERROR 1347: 'x' is not VIEW` | An earlier failed restore left a view stub as a real table | `DROP DATABASE` and restore again from clean |
+| Reading a view fails: `definer ('admin'@'%') does not exist` | Views carry production's `DEFINER` and run with its privileges | Create the account locally — see [Restoring additional databases](#restoring-additional-databases-spots) |
+| Metabase sees `Micro-Surveys` but not `SPOTS` | Container init granted the `metabase` user only `MYSQL_DATABASE` | `GRANT SELECT ON \`SPOTS\`.* TO "metabase"@"%"` |
 | Import completes but count is 0 | All Response_IDs already in DB | Normal for re-imports. New data will show non-zero. |
 | Yellow ⚠ badge on roster file | Canvas ID not found in Notes.md | Add the course URL + SIS ID to Notes.md |
 | Status reads "Notes.md found — 14 course(s) indexed" but badges show unfamiliar course names | No `Notes.md`; the tools fell back to the committed `Notes-src.md` from term 2943 | Create `data-handling-scripts/Notes.md` with the current term's courses |

@@ -101,8 +101,16 @@ echo "Restoring…"
 # dump's own DROP TABLE IF EXISTS statements still replace the contents.
 # The pattern only matches a bare form — an existing IF NOT EXISTS has a letter,
 # not a backtick, after "CREATE DATABASE ".
+#
+# Adminer dumps each VIEW twice: first a CREATE TABLE stub so that dependent
+# objects resolve, then later a DROP TABLE followed by the real CREATE VIEW.
+# When it cannot introspect a view's columns it emits an empty stub —
+# `CREATE TABLE `x` ();` — which is not valid SQL and aborts the restore.
+# Giving the stub one throwaway column makes it parse; the DROP TABLE that
+# precedes the real view definition discards it moments later.
 gzip -dc "$DUMP_FILE" \
   | sed -E 's/^CREATE DATABASE (`)/CREATE DATABASE IF NOT EXISTS \1/' \
+  | sed -E 's/^CREATE TABLE (`[^`]+`) \(\);/CREATE TABLE \1 (`_adminer_view_placeholder` int);/' \
   | docker exec -i "$LOCAL_CONTAINER" sh -c \
       'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot'
 
