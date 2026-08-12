@@ -2,11 +2,16 @@
 .DS_Store
 
 # Credentials — never commit
+# Bare pattern, not just Metabase/.env: a stray .env at the repo root would
+# otherwise be picked up by `git add -A`.
+.env
 Metabase/.env
 
 # Metabase application database (large binary, regenerated on first run)
 Metabase/metabase.db.mv.db
 Metabase/metabase.db.trace.db
+# Rollback copies written by ops/import-metabase-h2.sh
+Metabase/metabase.db.mv.db.pre-import-*
 
 # Data pipeline — local working files with real institutional data
 data-handling-scripts/Notes.md
@@ -25,3 +30,6 @@ data-handling-scripts/__pycache__/
 # Docs
 Todo.md
 .agents/
+
+# Database dumps — real institutional data, never commit
+backups/

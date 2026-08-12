@@ -43,7 +43,10 @@ services:
     platform: linux/arm64
 
   metabase:
-    image: metabase/metabase:v0.52.3
+    # Pinned to match production (dbdkr). The Metabase application database
+    # migrates forward only: an app DB from v0.55.12 will not boot on an older
+    # build, so this must not drift below production's version.
+    image: metabase/metabase:v0.55.12
     container_name: metabase-container
     restart: always
     platform: linux/amd64

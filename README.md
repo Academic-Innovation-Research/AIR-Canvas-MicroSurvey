@@ -8,10 +8,13 @@ Built for ERAU Worldwide. Operates across 1–30 courses per survey run.
 
 ## Quick Start
 
-Two prerequisites, then everything else is automated:
+Three prerequisites, then everything else is automated:
 
 1. **Docker installed** — `start.py` will launch Docker Desktop itself if it isn't running.
 2. **`Metabase/.env` present** — gitignored, so it is never in a fresh clone. Copy it from a machine that has it, or `cd Metabase && cp env.sample .env` and set the credentials. `start.py` checks for it first and stops with instructions if it is missing.
+3. **Database loaded from a production extract** — the repository contains **no `CREATE TABLE` statements**. A fresh clone against a fresh Docker volume gives you an empty database, and the import tools will fail on the first `INSERT`. See [Production Data and Backups](#production-data-and-backups). This is a one-time step per machine.
+
+Dashboards are a separate step again: they live in Metabase's own application database, so a new machine shows the Metabase setup wizard until you copy that across too. See [Replicating Production Metabase](#replicating-production-metabase).
 
 ```bash
 cd data-handling-scripts
@@ -313,6 +316,23 @@ Surveys (1) ──────────────────── (N) Sur
                                           │                              │
                                      Response_ID (PK)           FK → Survey_Questions
 ```
+
+### Stored Procedures (legacy — do not call)
+
+Production carries two stored procedures, restored along with the schema:
+
+| Procedure | Body |
+|---|---|
+| `SwapCoursesTables` | `RENAME TABLE Courses ↔ Courses_Bak` (via `Courses_Temp`) |
+| `SwapPeopleTables` | `RENAME TABLE People ↔ People_Bak` (via `People_Temp`) |
+
+They implement an atomic blue/green table swap — **but `Courses_Bak` and `People_Bak` do not exist**, in production or anywhere else. Calling either procedure fails with `Table 'Micro-Surveys.Courses_Bak' doesn't exist`.
+
+They are leftovers from a superseded import strategy. Nothing in the current toolchain calls them; idempotency now comes from `ON DUPLICATE KEY UPDATE` against the unique index on `People(EMPL_ID)`. Left in place because they are inert, but do not build on them.
+
+### Index note
+
+`People` carries four separate indexes on `EMPL_ID` — `PRIMARY`, `EMPL_ID`, `uniq_people_empl_id`, and `Index_1`. Three are redundant. Harmless at current scale (a few hundred rows), worth collapsing to one whenever the schema is next rebuilt.
 
 ---
 
@@ -638,26 +658,198 @@ AIR-Canvas-MicroSurvey/
 │       5-build_enrollment_inserts.py, run_all_course_scripts.py,
 │       build_survey_responses_inserts.py, build_survey_answers_inserts.py
 │
-└── Metabase/
-    ├── docker-compose.yml               MySQL 8 + phpMyAdmin + Metabase
-    ├── .env                             ★ (gitignored) credentials — required; stack will not start without it
-    ├── env.sample                       Template for .env
-    └── README.md                        Docker-specific documentation
+├── Metabase/
+│   ├── docker-compose.yml               MySQL 8 + phpMyAdmin + Metabase
+│   ├── .env                             ★ (gitignored) credentials — required; stack will not start without it
+│   ├── env.sample                       Template for .env
+│   └── README.md                        Docker-specific documentation
+│
+├── ops/                                 Database operations — see "Production Data and Backups"
+│   ├── dump-prod-mysql.sh               Pull a dump from production over SSH (read-only on prod)
+│   ├── extract-database.sh              Pull ONE database out of a multi-database dump
+│   ├── restore-local-mysql.sh           Load a dump into the local container
+│   └── import-metabase-h2.sh            Swap in a production Metabase app DB (auto-rollback on failure)
+│
+└── backups/                             ★ (gitignored) dumps land here — real student data, never commit
 ```
 
-**Not in a fresh clone.** `Metabase/.env`, `data-handling-scripts/Notes.md`, `Enrollment/`, and `sql/` are all gitignored. The first two you must supply. The last two belong to the superseded pipeline and nothing in the current process creates or reads them.
+**Not in a fresh clone.** `Metabase/.env`, `data-handling-scripts/Notes.md`, `backups/`, `Enrollment/`, and `sql/` are all gitignored. The first two you must supply, and `backups/` you populate from production. The last two belong to the superseded pipeline and nothing in the current process creates or reads them.
 
 ---
 
-## First-time Database Setup
+## Production Data and Backups
 
-After the Docker stack is running for the first time, apply the schema setup script once:
+**The repository contains no table definitions.** There is no `CREATE TABLE` anywhere in the tree, and `schema-setup.sql` only adds an index to a `People` table it assumes already exists. A fresh clone against a fresh Docker volume therefore starts with an *empty* database — the stack comes up perfectly and the first import fails with `Table 'Micro-Surveys.Terms' doesn't exist`.
+
+**Production is the schema's source of truth.** Setting up a machine means restoring a production extract, not building a schema by hand. Three steps, scripts in `ops/`.
+
+### 1. Dump production
 
 ```bash
-docker exec -i mysql-container mysql -uroot -p"$(grep DB_PASSWORD Metabase/.env | cut -d= -f2)" Micro-Surveys < data-handling-scripts/schema-setup.sql
+PROD_SSH=user@host ./ops/dump-prod-mysql.sh
 ```
 
-This creates the unique index on `People(EMPL_ID)` that makes re-imports idempotent. It is safe to re-run — it uses `CREATE UNIQUE INDEX IF NOT EXISTS`.
+Read-only against production: it runs `mysqldump` *inside* the prod container and streams the gzipped result back over SSH. Nothing is written to the production filesystem and no schema, data, or configuration is modified.
+
+Two details worth knowing:
+
+- **The password never leaves the container.** The script reads `MYSQL_ROOT_PASSWORD` from the container's own environment, so no credential appears in your shell history, in the SSH command, or in either host's process list.
+- **`--single-transaction`** takes a consistent InnoDB snapshot without locking production tables, so the dump does not block live traffic.
+
+Override `PROD_CONTAINER` (default `mysql-container`) or `PROD_DB` (default `Micro-Surveys`) if production differs.
+
+The output is verified before it is accepted: gzip integrity plus the presence of the trailing `Dump completed` marker, which proves the dump ran to completion rather than being cut short by a dropped connection. A failed dump deletes its own partial file.
+
+If you obtain a dump another way — Adminer, phpMyAdmin, a colleague — drop it in `backups/` and continue at step 2.
+
+### 2. Extract the single database you need
+
+> **⚠ Full-server dumps contain MySQL's internal `mysql` schema.** That schema holds the account table, including password hashes. Restoring it overwrites your local server's users, grants, and root password — which can lock you out of your own container. Such a dump also carries sibling projects (`SPOTS`) you almost certainly do not want locally.
+>
+> **Never restore a multi-database dump directly.** Extract first.
+
+```bash
+./ops/extract-database.sh backups/db.sql.gz Micro-Surveys
+```
+
+This writes `backups/Micro-Surveys-only-<timestamp>.sql.gz` containing that database plus the dump's header preamble, and prints exactly which databases it excluded. Run it with a name that isn't present and it lists what the dump actually holds.
+
+A recent full-server dump looked like this — only the first 0.9% of it was wanted:
+
+```
+Micro-Surveys   lines     10–2757     ← keep
+SPOTS           lines   2758–176953   ← different project
+mysql           lines 176954–316881   ← accounts and password hashes
+sys             lines 316882–320739   ← MySQL internals
+```
+
+### 3. Restore locally
+
+```bash
+./ops/restore-local-mysql.sh backups/Micro-Surveys-only-<timestamp>.sql.gz
+```
+
+Destructive locally, never remotely — production is not contacted. It reports how many tables will be replaced and prompts before proceeding (`-y` skips the prompt). It refuses to run on a dump missing its completeness marker, because `mysqldump` emits `DROP TABLE` before each `CREATE`: a truncated file would drop your tables and then fail partway through reloading. Use `-f` to override when you have verified a file yourself.
+
+Bare `CREATE DATABASE` statements are rewritten to `IF NOT EXISTS`, since Compose pre-creates the database via `MYSQL_DATABASE` and the bare form otherwise fails with `ERROR 1007`.
+
+### Verify
+
+```bash
+docker exec mysql-container sh -c 'MYSQL_PWD="$MYSQL_ROOT_PASSWORD" mysql -uroot --table "Micro-Surveys" -e "
+  SELECT \"Courses\" t, COUNT(*) n FROM Courses
+  UNION ALL SELECT \"People\", COUNT(*) FROM People
+  UNION ALL SELECT \"Enrollment\", COUNT(*) FROM Enrollment
+  UNION ALL SELECT \"Survey_Responses\", COUNT(*) FROM Survey_Responses;"'
+```
+
+`SHOW TABLE STATUS` and the `information_schema.tables.table_rows` column report InnoDB *estimates* that can be badly wrong on small tables — a table of 89 rows may report 8. Always `COUNT(*)` when the number matters.
+
+### About `schema-setup.sql`
+
+Production already carries the `uniq_people_empl_id` index, so a restored database needs nothing further. The script remains for the case where you are working against a database that lacks it. It is safe to re-run — it uses `CREATE UNIQUE INDEX IF NOT EXISTS`.
+
+### Handling dump files
+
+`backups/` is gitignored. Treat its contents as sensitive:
+
+- Extracts of `Micro-Surveys` hold **real student enrollment and survey data**
+- Full-server dumps additionally hold **production database credentials** (`mysql.user.authentication_string`)
+
+Keep the extract, delete the full-server dump once you have it, and never commit or forward either.
+
+---
+
+## Replicating Production Metabase
+
+Restoring MySQL gives Metabase something to **query**. It gives it nothing to **display** — a fresh instance shows the setup wizard even with a full database behind it.
+
+Dashboards, questions, collections, users, permissions, and data-source connections all live in Metabase's **application database**, which is entirely separate from `Micro-Surveys`. Replicating production means copying that application database across. There is no partial version: dashboards and users come as one unit.
+
+> Metabase's **serialization** feature (exporting dashboards to YAML) is **Pro/Enterprise only**, and Metabase explicitly states it is *not* a backup mechanism. On open source, copying the application database is the supported path.
+
+### Version must match first
+
+The application database migrates **forward only**. An app DB from a newer Metabase will not boot on an older build; an older one is silently upgraded in place with no way back.
+
+Check production's real version — the image tag may be `latest`, which tells you nothing:
+
+```bash
+docker logs metabase-container 2>&1 | grep -iE "Metabase v[0-9]" | head -3
+```
+
+Then pin `Metabase/docker-compose.yml` to that exact version before importing anything.
+
+> **⚠ Production runs `metabase/metabase:latest`.** Any `docker compose pull` followed by a restart upgrades Metabase and migrates the H2 application database forward, irreversibly. Pin production to an explicit version.
+
+### Copy the application database
+
+Production stores it as H2 at `/home/saumr/docker-compose/metabase-data/metabase.db/metabase.db.mv.db` — note it sits one directory deeper than `MB_DB_FILE` implies.
+
+**Metabase must be stopped.** H2 holds file locks, and a copy taken while it is running can be internally inconsistent.
+
+```bash
+# ON PRODUCTION — downtime is ~10–30 seconds
+docker stop metabase-container
+cd /home/saumr/docker-compose/metabase-data/metabase.db/
+gzip -c metabase.db.mv.db > /tmp/metabase-backup.mv.db.gz
+
+stat -c %s metabase.db.mv.db      # record: size
+sha256sum metabase.db.mv.db       # record: checksum
+
+docker start metabase-container
+```
+
+Compressing first roughly halves the transfer and makes truncation detectable — gzip carries its own integrity check, whereas a partial H2 file keeps a valid `H:2,` header and looks fine.
+
+Transfer `/tmp/metabase-backup.mv.db.gz` to `backups/`, then:
+
+```bash
+gzip -t backups/metabase-backup.mv.db.gz          # transfer is whole
+gzip -d backups/metabase-backup.mv.db.gz
+
+EXPECT_SIZE=<size> EXPECT_SHA256=<checksum> \
+  ./ops/import-metabase-h2.sh backups/metabase-backup.mv.db
+```
+
+The script stops Metabase, preserves the current app DB as `metabase.db.mv.db.pre-import-<timestamp>`, installs the new one, restarts, and polls health for three minutes — **rolling back automatically if it fails to boot**. Passing `EXPECT_SIZE`/`EXPECT_SHA256` is strongly recommended; without them, truncation cannot be detected from the file's contents.
+
+> **File size is not a reliable comparison.** H2 compacts its MVStore on clean shutdown. The same database can read 60 MB while running and 12 MB after `docker stop`. Compare **checksums**, taken in the same state.
+
+### Reconnect the data source
+
+The imported app DB carries **production's** connection settings, including production's credentials. Every report will fail until you re-point it:
+
+```
+(conn=NNNN) Access denied for user 'root'@'172.19.0.x' (using password: YES)
+```
+
+Log in at http://localhost:3000 with your **production Metabase credentials** — local accounts were replaced by production's user table — then go to **Admin → Databases → (your database) → Edit connection** and set:
+
+| Field | Value | Source |
+|---|---|---|
+| Host | `db` | Compose service name; resolves on `app-network` |
+| Port | `3306` | `DB_PORT` |
+| Database name | `Micro-Surveys` | `DB_NAME` |
+| Username | `metabase` | `DB_USER` |
+| Password | `metabase` | `DB_USER_PASSWORD` |
+
+Use `metabase`, not `root`. The `metabase` account holds `ALL PRIVILEGES ON \`Micro-Surveys\`.*` — everything Metabase needs — while leaving the rest of the server alone. Root stays reserved for the import tools.
+
+Use **`db`**, not `localhost` or `127.0.0.1`: Metabase connects from inside its own container, where `localhost` is the Metabase container itself. `db` is the MySQL service on the shared Compose network.
+
+Verify the credentials independently of Metabase at any time:
+
+```bash
+docker exec mysql-container mysql -h db -u metabase -pmetabase "Micro-Surveys" \
+  -e "SELECT COUNT(*) FROM Courses;"
+```
+
+### This is also your Metabase backup
+
+Production's application database is a single H2 file with no backup and no replication. The copy produced above is, in practice, **the only backup of every dashboard, question, and user**. Keep it somewhere durable — `backups/` is gitignored and syncs nowhere on its own.
+
+Making this routine rather than an expedition means migrating the application database off H2 onto PostgreSQL, after which backups are an ordinary `pg_dump` on the same schedule as everything else.
 
 ---
 
@@ -672,6 +864,17 @@ This creates the unique index on `People(EMPL_ID)` that makes re-imports idempot
 | Dashboard (`localhost:5010`) not loading | Servers not started | Run `python3 start.py` from `data-handling-scripts/` |
 | `localhost:5001`, `:5002`, or `:5003` not responding | One tool crashed after start | Restart `python3 start.py`; check terminal output for the failing script |
 | `mysql-container is unhealthy` on `docker compose up` | Stale health status after force reboot | `docker compose down && docker compose up -d` |
+| `Table 'Micro-Surveys.<name>' doesn't exist` on import | Empty database — the repo has no `CREATE TABLE` statements, so a fresh clone has no schema | Restore a production extract: [Production Data and Backups](#production-data-and-backups) |
+| `ops/dump-prod-mysql.sh` fails with **exit 255** | 255 is SSH's own error code — the connection or authentication failed and `mysqldump` never ran | Test the hop alone: `ssh -v user@host 'docker ps'`. Check key installation, host key acceptance, VPN, or jump host |
+| `ERROR 1007 … database exists` when restoring by hand | Dump has a bare `CREATE DATABASE`; Compose already created it via `MYSQL_DATABASE` | Use `ops/restore-local-mysql.sh`, which rewrites it to `IF NOT EXISTS` |
+| Restore refuses: `No completeness marker found` | Dump is truncated, or came from a tool whose sign-off isn't recognized | Re-pull the dump. If you have verified the file yourself, re-run with `-f` |
+| Locked out of local MySQL after a restore | A full-server dump was restored, overwriting `mysql.user` with production accounts | `cd Metabase && docker compose down -v` (destroys local data), restart, then restore an **extract** — never a full-server dump |
+| Row counts look wrong (e.g. 89 rows reported as 8) | `information_schema.tables.table_rows` is an InnoDB estimate | Use `COUNT(*)` whenever the number matters |
+| Metabase shows the **setup wizard** despite a loaded database | Dashboards and users live in Metabase's application database, not in `Micro-Surveys` | [Replicating Production Metabase](#replicating-production-metabase) |
+| Every report fails: `Access denied for user 'root'@'172.19.0.x'` | Imported app DB carries production's credentials | Re-point the connection to `db` / `3306` / `Micro-Surveys` / `metabase` / `metabase` — see [Reconnect the data source](#reconnect-the-data-source) |
+| Metabase can't reach MySQL on `localhost` | Metabase connects from inside its own container, where `localhost` is Metabase itself | Use host `db`, the Compose service name on `app-network` |
+| Imported app DB won't boot | Source came from a newer Metabase than this instance; migration is forward-only | Pin `Metabase/docker-compose.yml` to production's version. `import-metabase-h2.sh` rolls back automatically |
+| H2 file size differs wildly between machines | H2 compacts its MVStore on clean shutdown — 60 MB running vs 12 MB stopped is the *same* database | Compare `sha256sum`, taken in the same state; never compare sizes across running/stopped |
 | Import completes but count is 0 | All Response_IDs already in DB | Normal for re-imports. New data will show non-zero. |
 | Yellow ⚠ badge on roster file | Canvas ID not found in Notes.md | Add the course URL + SIS ID to Notes.md |
 | Status reads "Notes.md found — 14 course(s) indexed" but badges show unfamiliar course names | No `Notes.md`; the tools fell back to the committed `Notes-src.md` from term 2943 | Create `data-handling-scripts/Notes.md` with the current term's courses |
