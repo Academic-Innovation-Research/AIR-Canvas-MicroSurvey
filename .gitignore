@@ -10,8 +10,9 @@ Metabase/.env
 # Metabase application database (large binary, regenerated on first run)
 Metabase/metabase.db.mv.db
 Metabase/metabase.db.trace.db
-# Rollback copies written by ops/import-metabase-h2.sh
-Metabase/metabase.db.mv.db.pre-import-*
+# Rollback copies: pre-import-*, pre-postgres-*, and any future suffix.
+# Broad by design — these are multi-MB binaries and none belong in git.
+Metabase/metabase.db.mv.db.*
 
 # Data pipeline — local working files with real institutional data
 data-handling-scripts/Notes.md

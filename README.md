@@ -528,6 +528,9 @@ Full list is in `env.sample`. The ones that matter:
 | `DB_PASSWORD` | `password` | MySQL **root** password — used by the import tools for writes and by the MySQL healthcheck |
 | `MB_JAVA_TIMEZONE` | `America/New_York` | Metabase JVM timezone |
 | `MB_PORT` / `DB_PORT` | `3000` / `3306` | Host ports for Metabase and MySQL |
+| `MB_APP_DB_NAME` | `metabase_app` | Metabase **application** database (PostgreSQL) |
+| `MB_APP_DB_USER` | `metabase` | Owner of the application database |
+| `MB_APP_DB_PASSWORD` | `metabase` | Password for that account |
 
 The import tools read `.env` automatically from `../Metabase/.env` relative to the scripts directory. No environment setup is needed beyond creating the file.
 
@@ -537,11 +540,16 @@ The import tools read `.env` automatically from `../Metabase/.env` relative to t
 
 ### Services
 
-| Container | Port | Image |
-|---|---|---|
-| `mysql-container` | 3306 | `mysql:8.1` (arm64) |
-| `phpmyadmin-container` | 8081 | `phpmyadmin:5.2.1` |
-| `metabase-container` | 3000 | `metabase/metabase:v0.52.3` |
+| Container | Port | Image | Holds |
+|---|---|---|---|
+| `mysql-container` | 3306 | `mysql:8.1` (arm64) | Analytics data — `Micro-Surveys`, `SPOTS` |
+| `phpmyadmin-container` | 8081 | `phpmyadmin:5.2.1` | — |
+| `metabase-container` | 3000 | `metabase/metabase:v0.55.12` | — |
+| `metabase-postgres` | — | `postgres:16` | Metabase **application** DB — dashboards, users |
+
+The two databases are easy to confuse and are completely separate. `mysql-container` holds the data Metabase *queries*. `metabase-postgres` holds Metabase itself — dashboards, questions, collections, users, permissions. Losing the first costs you a re-import; losing the second costs you every dashboard ever built.
+
+`metabase-postgres` publishes no host port. Metabase reaches it over the Compose network, and nothing else needs it.
 
 ### Recovering from a hard reboot
 
@@ -668,7 +676,8 @@ AIR-Canvas-MicroSurvey/
 │   ├── dump-prod-mysql.sh               Pull a dump from production over SSH (read-only on prod)
 │   ├── extract-database.sh              Pull ONE database out of a multi-database dump
 │   ├── restore-local-mysql.sh           Load a dump into the local container
-│   └── import-metabase-h2.sh            Swap in a production Metabase app DB (auto-rollback on failure)
+│   ├── import-metabase-h2.sh            Load a production H2 app DB (see caveat — local now runs Postgres)
+│   └── backup-metabase-appdb.sh         pg_dump every dashboard, question, and user — no downtime
 │
 └── backups/                             ★ (gitignored) dumps land here — real student data, never commit
 ```
@@ -878,11 +887,63 @@ docker exec mysql-container mysql -h db -u metabase -pmetabase "Micro-Surveys" \
   -e "SELECT COUNT(*) FROM Courses;"
 ```
 
-### This is also your Metabase backup
+### This local instance runs PostgreSQL, not H2
 
-Production's application database is a single H2 file with no backup and no replication. The copy produced above is, in practice, **the only backup of every dashboard, question, and user**. Keep it somewhere durable — `backups/` is gitignored and syncs nowhere on its own.
+Production still uses H2. **This machine no longer does** — the application database was migrated to the `metabase-postgres` service, so backups are an ordinary `pg_dump` instead of a stop-the-service file copy.
 
-Making this routine rather than an expedition means migrating the application database off H2 onto PostgreSQL, after which backups are an ordinary `pg_dump` on the same schedule as everything else.
+That changes how a *future* production import works. `ops/import-metabase-h2.sh` swaps an H2 file into place, which this instance no longer reads — `MB_DB_TYPE=postgres` wins, and the swap would silently do nothing. The script is kept for restoring a pre-migration snapshot or seeding a fresh H2-based instance. To bring a newer production copy in, load it into Postgres instead:
+
+```bash
+# 1. Pull prod's H2 file (stop Metabase on prod first — see above), then:
+cd Metabase
+docker stop metabase-container
+
+# 2. load-from-h2 requires an EMPTY target. Recreate the application database.
+docker exec metabase-postgres psql -U metabase -d postgres \
+  -c 'DROP DATABASE IF EXISTS metabase_app;' -c 'CREATE DATABASE metabase_app;'
+
+# 3. Copy the H2 file to Metabase/metabase.db.mv.db, then migrate it in.
+#    Note the truncated path: metabase.db, NOT metabase.db.mv.db.
+docker run --rm --platform linux/amd64 \
+  --network metabase_app-network \
+  -v "$PWD":/metabase.db \
+  -e MB_DB_TYPE=postgres \
+  -e MB_DB_CONNECTION_URI="jdbc:postgresql://metabase-app-db:5432/metabase_app?user=metabase&password=metabase" \
+  --entrypoint java \
+  metabase/metabase:v0.55.12 \
+  --add-opens java.base/java.nio=ALL-UNNAMED \
+  -jar /app/metabase.jar load-from-h2 /metabase.db/metabase.db
+
+docker compose up -d metabase
+```
+
+The Metabase version in that command must match both the H2 file's origin and the running instance. `--entrypoint java` is required — the image's default entrypoint is `run_metabase.sh`, which ignores the arguments.
+
+### Backing up Metabase
+
+```bash
+./ops/backup-metabase-appdb.sh
+```
+
+Runs against a live instance — **no downtime**. PostgreSQL gives a consistent snapshot without blocking readers or writers. The script verifies gzip integrity and PostgreSQL's own completion marker, then reports what it captured so an empty-but-valid dump is obvious rather than reassuring:
+
+```
+✔  Backup verified.
+   file       : backups/metabase-appdb-<timestamp>.sql.gz (284K)
+   dashboards : 3
+   questions  : 73
+   users      : 10
+```
+
+Restore:
+
+```bash
+gzip -dc <file> | docker exec -i metabase-postgres psql -U metabase -d metabase_app
+```
+
+For contrast, the H2 procedure this replaced: stop Metabase, copy a 12 MB opaque blob, hope it was consistent, and accept that it can only be restored wholesale into an identical Metabase version. The dump above is 284 KB of readable SQL, taken without interrupting anyone.
+
+> **`backups/` is gitignored and syncs nowhere.** Copy dumps somewhere durable — these files contain user accounts and password hashes as well as dashboard definitions.
 
 ---
 
