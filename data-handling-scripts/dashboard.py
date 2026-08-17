@@ -415,6 +415,12 @@ _HTML = """\
 </footer>
 
 <script>
+// Tool links are written as localhost; when the dashboard is opened from another
+// machine on the LAN, point them at whatever host got us here instead.
+for (const a of document.querySelectorAll('a[href^="http://localhost:"]')) {
+  a.href = a.href.replace('//localhost:', '//' + location.hostname + ':');
+}
+
 async function refresh() {
   try {
     const r = await fetch('/status');

@@ -42,8 +42,36 @@ services:
       - app-network
     platform: linux/arm64
 
+  # Metabase's APPLICATION database — dashboards, questions, users, permissions.
+  # Distinct from `db` above, which holds the analytics data Metabase queries.
+  #
+  # This replaces the default H2 file. H2 cannot be backed up while Metabase is
+  # running, has no incremental or partial restore, and is a single binary blob
+  # that Metabase does not recommend for production. On Postgres, backing up
+  # every dashboard is an ordinary pg_dump.
+  metabase-app-db:
+    image: postgres:16
+    container_name: metabase-postgres
+    restart: always
+    volumes:
+      - mb-app-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: ${MB_APP_DB_NAME}
+      POSTGRES_USER: ${MB_APP_DB_USER}
+      POSTGRES_PASSWORD: ${MB_APP_DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${MB_APP_DB_USER} -d ${MB_APP_DB_NAME}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - app-network
+
   metabase:
-    image: metabase/metabase:v0.52.3
+    # Pinned to match production (dbdkr). The Metabase application database
+    # migrates forward only: an app DB from v0.55.12 will not boot on an older
+    # build, so this must not drift below production's version.
+    image: metabase/metabase:v0.55.12
     container_name: metabase-container
     restart: always
     platform: linux/amd64
@@ -52,10 +80,20 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      metabase-app-db:
+        condition: service_healthy
     volumes:
+      # Retained after the Postgres migration so the old H2 file stays available
+      # as a rollback point. Metabase no longer reads it — MB_DB_TYPE wins.
       - ./:/metabase.db
     environment:
       JAVA_TIMEZONE: ${MB_JAVA_TIMEZONE}
+      MB_DB_TYPE: postgres
+      MB_DB_HOST: metabase-app-db
+      MB_DB_PORT: 5432
+      MB_DB_DBNAME: ${MB_APP_DB_NAME}
+      MB_DB_USER: ${MB_APP_DB_USER}
+      MB_DB_PASS: ${MB_APP_DB_PASSWORD}
     ports:
       - "3000:3000"
 
@@ -65,3 +103,4 @@ networks:
 
 volumes:
   db-data:
+  mb-app-data:

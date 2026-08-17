@@ -636,4 +636,4 @@ if __name__ == "__main__":
     print(f"MySQL : {MYSQL_CONTAINER} ({'running' if ok else 'NOT RUNNING — ' + msg})")
     print(f"DB    : {DB_NAME}")
     print(f"Notes : {len(notes)} course(s) indexed from {notes_path.name}")
-    HTTPServer(("127.0.0.1", PORT), Handler).serve_forever()
+    HTTPServer(("", PORT), Handler).serve_forever()
