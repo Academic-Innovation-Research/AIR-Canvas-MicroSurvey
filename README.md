@@ -208,7 +208,7 @@ One row per person across all courses. PK is the employee ID.
 | `EMPL_ID` | `varchar(50)` | PK + UNIQUE. Canvas SIS/employee ID |
 | `Name` | `varchar(100)` | Full name |
 | `Login_ID` | `varchar(50)` | UNIQUE. Campus login |
-| `Role` | `varchar(50)` | `StudentEnrollment`, `TeacherEnrollment`, etc. |
+| `Role` | `varchar(50)` | **Two spellings exist in the data** — see [Role values](#role-values-two-spellings). Canvas emits either `Student`/`Teacher` or `StudentEnrollment`/`TeacherEnrollment` depending on the roster export |
 
 #### Enrollment
 Junction table linking people to courses. Rebuilt per-course on each import.
@@ -218,7 +218,7 @@ Junction table linking people to courses. Rebuilt per-course on each import.
 | `ID` | `int` | PK, auto-increment |
 | `CanvasID` | `int` | FK → Courses |
 | `Empl_ID` | `varchar(50)` | FK → People |
-| `Role` | `varchar(255)` | Role in this specific course |
+| `Role` | `varchar(255)` | Role in this specific course. **Two spellings exist** — never filter with `= 'Student'` alone, see [Role values](#role-values-two-spellings) |
 
 ### Survey Group
 
@@ -513,7 +513,7 @@ The import tools read `.env` automatically from `../Metabase/.env` relative to t
 
 > **The file is required, not optional.** `docker-compose.yml` substitutes these variables directly. Without `.env`, Compose fills every one with an empty string, MySQL refuses to initialise on a blank root password, and the container ends up unhealthy — a failure that surfaces well after the step that caused it. `start.py` now checks for the file before touching Docker.
 >
-> Change `DB_PASSWORD` after `db-data` already exists and MySQL will reject the new password: the root credential lives in the volume, set at first initialisation. To genuinely reset it, `docker compose down -v` (**destroys all data**) and re-import.
+> Change `DB_PASSWORD` after `db-data` already exists and MySQL will reject the new password: the root credential lives in the volume, set at first initialisation. `MYSQL_ROOT_PASSWORD` is read *only* when the data directory is empty. You do not need to destroy the volume to fix this — `ALTER USER` resets the stored credential in place, per account and per source host (see [MySQL accounts are per source host](#mysql-accounts-are-per-source-host)). `docker compose down -v` (**destroys all data**) is a last resort, not the remedy.
 
 ### Services
 
@@ -522,6 +522,55 @@ The import tools read `.env` automatically from `../Metabase/.env` relative to t
 | `mysql-container` | 3306 | `mysql:8.1` (arm64) |
 | `phpmyadmin-container` | 8081 | `phpmyadmin:5.2.1` |
 | `metabase-container` | 3000 | `metabase/metabase:v0.52.3` |
+
+### Production differs from this compose file
+
+The production server (`dbdkr.erau.edu`, reachable on VPN) runs the same three services with two differences that `docker-compose.yml` does **not** reflect:
+
+| Container | Port | Image | Difference |
+|---|---|---|---|
+| `adminer-container` | 8080 | `adminer:4.8.1` | Replaced phpMyAdmin in production — phpMyAdmin was leaking memory. Local dev still gets phpMyAdmin on 8081. |
+| `metabase-container` | 3000 | `metabase/metabase:latest` | Unpinned upstream, so a restart can change Metabase versions. The repo pins `v0.52.3`. |
+
+Deploying straight from this repo therefore gives you phpMyAdmin on **8081**, not Adminer on **8080**. Anywhere this README says phpMyAdmin/8081, read Adminer/8080 if you are on the production box. The database URLs and credentials are identical either way — only the browser client differs.
+
+### MySQL accounts are per source host
+
+`root@'%'`, `root@'localhost'`, and `root@'<literal-ip>'` are **separate accounts with separate passwords**, and MySQL authenticates against the most specific host match. Two consequences worth internalising before debugging any login failure:
+
+- **A healthy container proves nothing about network logins.** The healthcheck (`mysqladmin ping -h localhost`) and `docker exec … mysql -uroot` both go over the local socket and match `root@'localhost'`. Adminer, Metabase, and the import tools connect over TCP from another container and match `root@'%'`. The first pair can succeed while every one of the second fails.
+- **Never grant to a literal container IP.** Docker assigns bridge subnets when it creates the network, so `docker compose down && up` can move every container to a new subnet and silently invalidate an IP-pinned grant.
+
+To test the credential that Adminer and the import tools actually use, force a TCP connection so it matches `root@'%'`:
+
+```bash
+P=$(docker exec mysql-container printenv MYSQL_ROOT_PASSWORD)
+docker exec mysql-container mysql -h mysql-container -uroot -p"$P" -e "select current_user()"
+docker exec mysql-container mysql -uroot -p"$P" -e "select user,host,plugin from mysql.user"
+```
+
+#### Incident: Adminer "Access denied" after a restart (2026-08-17)
+
+Adminer rejected the root login with `Access denied for user 'root'@'192.168.224.3' (using password: YES)` while `docker ps` reported `mysql-container` healthy and Metabase kept serving.
+
+**Cause.** An earlier fix had granted root from Adminer's container IP at the time, creating a `root@'192.168.32.3'` account. The restart recreated the bridge network on `192.168.224.0/20`, so that grant no longer matched, and logins fell through to `root@'%'` — an account created by hand whose password was never the `DB_PASSWORD` in `.env`. The healthcheck kept passing throughout because it authenticates as `root@'localhost'`, a third account, still on the image's original `caching_sha2_password`.
+
+**Fix applied.** Realigned `root@'%'` with `.env` and removed the IP-pinned account so a future subnet change cannot reintroduce this:
+
+```bash
+P=$(docker exec mysql-container printenv MYSQL_ROOT_PASSWORD)
+docker exec mysql-container mysql -uroot -p"$P" -e \
+  "ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '$P'; \
+   DROP USER 'root'@'192.168.32.3'; FLUSH PRIVILEGES;"
+```
+
+`root@'%'` now matches any source IP and is the single source of truth, synchronised with `Metabase/.env`. If anything on the box still authenticates as root over TCP with a hardcoded password rather than reading `.env`, it needs updating to the `.env` value — the dropped account's password is gone.
+
+**Follow-on: Metabase kept the old password.** Metabase stores the MySQL credential in its own application database, not in `.env`, so it went on presenting the stale password after the `ALTER USER` and its cards began failing with *"There was a problem displaying this chart."* Fixed by re-entering the connection under **Admin settings → Databases → Micro-Surveys** and saving.
+
+The failure was misleading in two ways worth remembering. It looked like an import problem because it surfaced right after a term import, and it looked *partial* — a few cards still rendered — because those were serving cached results rather than hitting MySQL. **Any time root's password changes, re-save the Metabase connection**, and read a half-broken dashboard as a credentials symptom rather than a data one.
+
+> **Known exposure, not yet addressed.** Production publishes MySQL as `0.0.0.0:3306->3306`, and `root@'%'` accepts from any source. Only the host firewall keeps 3306 closed off-box (8080, 3000, and 22 answer over VPN; 3306 does not). Binding `127.0.0.1:3306:3306` would close it properly — nothing outside the Docker network needs 3306.
 
 ### Recovering from a hard reboot
 
@@ -661,6 +710,59 @@ This creates the unique index on `People(EMPL_ID)` that makes re-imports idempot
 
 ---
 
+## Metabase Reporting
+
+### Role values: two spellings
+
+`Enrollment.Role` and `People.Role` are copied verbatim from the Canvas roster CSV. Canvas exports the role as either `Student`/`Teacher` or `StudentEnrollment`/`TeacherEnrollment` depending on which export you take, and `pipeline.py` stores whichever arrived — it only ever substring-matches (`"teacher" in role.lower()`), so both pass through without complaint. Term 2983 loaded the short form; earlier terms loaded the long form.
+
+**Decision: accept both spellings at query time rather than rewriting stored data.** Historic rows keep whatever Canvas sent, which keeps imports faithful to their source. Every report that filters on role must therefore match both:
+
+```sql
+WHERE Role IN ('Student', 'StudentEnrollment')
+```
+
+Prefer that over `LIKE '%Student%'`, which also matches Canvas's `StudentViewEnrollment` test-student rows and would inflate any student count. A filter written as `Role = 'Student'` silently drops every earlier term — it returns a plausible-looking number rather than an error, which is what makes it dangerous.
+
+### Response rate is per enrollment, not per person
+
+A student enrolled in three courses gets three chances to respond, so the denominator is **enrollments, not people**. In term 2983 that distinction is a factor of ~2.7: 151 student enrollments across only 55 distinct people.
+
+Counting `COUNT(DISTINCT Empl_ID)` against `COUNT(DISTINCT Response_ID)` in a single joined query produces rates above 100%. The denominator collapses each person to one row across every course and term, while the numerator keeps counting that person's course-level responses separately — so as terms accumulate the denominator saturates and the numerator does not. This produced a 150% response rate on the Overview dashboard.
+
+**Aggregate each side per course in its own subquery, then divide the sums.** Neither side can fan out through the join:
+
+```sql
+SELECT
+  ROUND(SUM(COALESCE(r.responses, 0)) / NULLIF(SUM(COALESCE(s.students, 0)), 0), 4) AS ResponseRate
+FROM Courses c
+JOIN Terms t ON c.TermCode = t.TermCode
+LEFT JOIN (
+  SELECT CanvasID, COUNT(DISTINCT Empl_ID) AS students
+  FROM Enrollment
+  WHERE Role IN ('Student', 'StudentEnrollment')
+  GROUP BY CanvasID
+) s ON s.CanvasID = c.CanvasID
+LEFT JOIN (
+  SELECT CanvasID, COUNT(DISTINCT Response_ID) AS responses
+  FROM Survey_Responses
+  WHERE Survey_ID = 'ERAU_ASIA'
+  GROUP BY CanvasID
+) r ON r.CanvasID = c.CanvasID
+WHERE 1 = 1
+  [[AND t.Term = {{term}}]]
+  [[AND c.Instructor = {{instructor}}]]
+  [[AND c.CourseName = {{course}}]]
+```
+
+Three conventions this encodes, all of which caused real wrong answers:
+
+- **Filter the right-hand table inside its subquery or `ON` clause, never in `WHERE`.** `WHERE sr.Survey_ID = 'ERAU_ASIA'` on a `LEFT JOIN` turns it back into an inner join — NULL never equals the literal — dropping every zero-response course, which is precisely the set that would lower the average.
+- **Return the fraction, not the percentage.** Cards are formatted as Percent in Metabase's column settings, so `0.32` displays as 32%. Multiplying by 100 as well yields 3200%. Round to 4 places, not 2 — at 2 places a percentage can only land on whole numbers.
+- **A single course can still legitimately exceed 100%.** Responses are anonymous and nothing deduplicates at the person level, so one student submitting twice inflates that course. That is a data-quality signal worth surfacing, not something to cap in SQL.
+
+---
+
 ## Common Issues
 
 | Symptom | Cause | Fix |
@@ -672,6 +774,8 @@ This creates the unique index on `People(EMPL_ID)` that makes re-imports idempot
 | Dashboard (`localhost:5010`) not loading | Servers not started | Run `python3 start.py` from `data-handling-scripts/` |
 | `localhost:5001`, `:5002`, or `:5003` not responding | One tool crashed after start | Restart `python3 start.py`; check terminal output for the failing script |
 | `mysql-container is unhealthy` on `docker compose up` | Stale health status after force reboot | `docker compose down && docker compose up -d` |
+| `Access denied for user 'root'@'<ip>' (using password: YES)` in Adminer/phpMyAdmin, while the container reports **healthy** | The healthcheck authenticates as `root@'localhost'` over the socket; the browser client arrives over TCP and matches a different account — usually `root@'%'`, whose password drifted from `.env`, or a stale grant pinned to an old container IP | `ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '<DB_PASSWORD>'` — see [MySQL accounts are per source host](#mysql-accounts-are-per-source-host). Do **not** grant to the new literal IP; it breaks again on the next restart |
+| Root login worked yesterday, fails after `docker compose down && up` | Docker recreated the bridge network on a new subnet, so any grant pinned to a literal container IP stopped matching | Same fix — move the grant to `root@'%'` and drop the IP-pinned account |
 | Import completes but count is 0 | All Response_IDs already in DB | Normal for re-imports. New data will show non-zero. |
 | Yellow ⚠ badge on roster file | Canvas ID not found in Notes.md | Add the course URL + SIS ID to Notes.md |
 | Status reads "Notes.md found — 14 course(s) indexed" but badges show unfamiliar course names | No `Notes.md`; the tools fell back to the committed `Notes-src.md` from term 2943 | Create `data-handling-scripts/Notes.md` with the current term's courses |
@@ -679,6 +783,10 @@ This creates the unique index on `People(EMPL_ID)` that makes re-imports idempot
 | Red ✖ badge on roster file | No 4+ digit number in filename | Rename file to `<CanvasID>.csv` |
 | "No data rows found" in survey import | Wrong file format or not a Qualtrics export | Check that the file is a Qualtrics CSV export, not a manual spreadsheet |
 | Metabase shows no data after import | Metabase cache | Browse to the question/dashboard and click the refresh icon |
+| Response rate above 100% | Denominator deduplicates people (`COUNT(DISTINCT Empl_ID)`) while the numerator counts each person's per-course responses | Aggregate per course in subqueries, then divide the sums — see [Response rate is per enrollment](#response-rate-is-per-enrollment-not-per-person) |
+| A term's counts read as 0, or a term is missing from a report entirely | A role filter written `= 'Student'` excludes terms stored as `StudentEnrollment` (or vice versa) | `WHERE Role IN ('Student', 'StudentEnrollment')` — see [Role values](#role-values-two-spellings) |
+| Courses with zero responses missing from a report | A `LEFT JOIN`ed table filtered in `WHERE` instead of `ON`, which makes the join inner | Move the predicate into the `ON` clause or the subquery |
+| Dashboard cards show "There was a problem displaying this chart" — **some** cards still render | Metabase's stored DB password no longer matches MySQL (typically after a root password change). The cards that still work are serving cached results, which disguises this as a data or import problem | Re-enter the connection in **Admin settings → Databases → Micro-Surveys** and save. Metabase keeps this credential in its own app DB — editing `Metabase/.env` does not update it |
 
 ---
 

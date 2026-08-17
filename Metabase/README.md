@@ -41,6 +41,23 @@ Container configurations depend on environment variables defined in an `.env` fi
 + [Metabase](http://localhost:3000/)
 + [PHPMyAdmin](http://localhost:8081/)
 
+> **Production runs Adminer on 8080, not phpMyAdmin on 8081.** phpMyAdmin was removed from `dbdkr.erau.edu` for leaking memory and replaced with `adminer:4.8.1`. This compose file was never updated to match, so a deploy from this repo brings up phpMyAdmin.
+
+
+### Login fails with "Access denied for user 'root'@'&lt;ip&gt;'"
+
+Root exists as several accounts — `root@'localhost'` (socket), `root@'%'` (network), and possibly stale ones pinned to old container IPs — each with **its own password**. The MySQL healthcheck uses the socket account, so the container can report `healthy` while every browser and import-tool login is rejected. `MYSQL_ROOT_PASSWORD` in `.env` only applies when the volume is first created; after that it is decorative unless the accounts are kept in sync.
+
+Inspect the accounts, then repair `root@'%'` in place — no need to destroy the volume:
+
+```bash
+P=$(docker exec mysql-container printenv MYSQL_ROOT_PASSWORD)
+docker exec mysql-container mysql -uroot -p"$P" -e "select user,host,plugin from mysql.user"
+docker exec mysql-container mysql -uroot -p"$P" -e "ALTER USER 'root'@'%' IDENTIFIED WITH mysql_native_password BY '$P'; FLUSH PRIVILEGES;"
+```
+
+Never grant root from a literal container IP: Docker reassigns bridge subnets when it recreates the network, and the grant stops matching on the next restart. Full write-up in the [root README](../README.md#mysql-accounts-are-per-source-host).
+
 
 ### Database
 For the prebuilt dashboard and reports to work the MySQL must be loaded. This file is not included in the distribution. This is not needed to run the application. You can still create your own reports and dashboards.
