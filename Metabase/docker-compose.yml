@@ -21,22 +21,19 @@ services:
       - app-network
     command: --default-authentication-plugin=mysql_native_password
       
-  phpmyadmin:
-    image: phpmyadmin:5.2.1
-    container_name: phpmyadmin-container
+  # Matches production, which replaced phpMyAdmin with Adminer after
+  # phpMyAdmin leaked memory. Production serves it on 8080; 8081 here keeps
+  # the port this repo has always used and avoids common 8080 clashes.
+  adminer:
+    image: adminer:4.8.1
+    container_name: adminer-container
     restart: always
     depends_on:
       - db
     environment:
-      PMA_HOST: db
-      PMA_PORT: 3306
-      MYSQL_DATABASE: ${DB_NAME}
-      MYSQL_USER: ${DB_USER}
-      MYSQL_PASSWORD: ${DB_USER_PASSWORD}
-      UPLOAD_LIMIT: 256M
-      PHP_MAX_EXECUTION_TIME: 300
+      ADMINER_DEFAULT_SERVER: db
     ports:
-      - "8081:80"
+      - "8081:8080"
     networks:
       - app-network
 
@@ -80,10 +77,10 @@ services:
         condition: service_healthy
       metabase-app-db:
         condition: service_healthy
-    volumes:
-      # Retained after the Postgres migration so the old H2 file stays available
-      # as a rollback point. Metabase no longer reads it — MB_DB_TYPE wins.
-      - ./:/metabase.db
+    # No bind mount. The H2 volume `./:/metabase.db` was dropped once the app
+    # DB moved to Postgres: Metabase no longer read it, and the entrypoint
+    # chowns /metabase.db to its own uid (2000), locking the host user out of
+    # this directory — including git checkouts of this file.
     environment:
       JAVA_TIMEZONE: ${MB_JAVA_TIMEZONE}
       MB_DB_TYPE: postgres

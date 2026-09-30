@@ -1,0 +1,23 @@
+# One instance per web tool, e.g. microsurvey@dashboard runs dashboard.py.
+# Installed by ops/install-services.sh, which fills in @REPO@ and @USER@.
+#
+# The Docker stack is not managed here: its containers are `restart: always`,
+# so dockerd brings them back on boot. These units only need dockerd running,
+# because the tools write to MySQL through `docker exec`.
+[Unit]
+Description=AIR Canvas MicroSurvey — %i
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@USER@
+WorkingDirectory=@REPO@/data-handling-scripts
+ExecStart=/usr/bin/python3 @REPO@/data-handling-scripts/%i.py
+Environment=PYTHONUNBUFFERED=1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

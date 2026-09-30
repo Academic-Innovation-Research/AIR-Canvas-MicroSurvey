@@ -21,7 +21,7 @@ cd data-handling-scripts
 python3 start.py
 ```
 
-On the very first run this pulls three Docker images (MySQL, phpMyAdmin, Metabase) and can take several minutes; pull progress prints as it goes. Subsequent runs start in seconds.
+On the very first run this pulls four Docker images (MySQL, Adminer, Metabase, PostgreSQL) and can take several minutes; pull progress prints as it goes. Subsequent runs start in seconds.
 
 `start.py` checks Docker, brings up the full stack (`docker compose up -d`), waits for MySQL to be ready, then opens the Dashboard in your browser automatically. No `pip install` required.
 
@@ -33,7 +33,7 @@ On the very first run this pulls three Docker images (MySQL, phpMyAdmin, Metabas
 | Canvas Enrollment Import | http://localhost:5001 | Drag-and-drop roster CSVs → MySQL |
 | Qualtrics Survey Import | http://localhost:5002 | Drag-and-drop Qualtrics exports → MySQL |
 | SQL Export | http://localhost:5003 | Select terms → download SQL delta for another system |
-| phpMyAdmin | http://localhost:8081 | Browse and query the database directly |
+| Adminer | http://localhost:8081 | Browse and query the database directly — server `db` |
 | Metabase | http://localhost:3000 | Dashboards and analytics |
 
 ---
@@ -115,7 +115,7 @@ Check the terms, download the SQL delta, import it into the production instance.
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Docker Stack (Metabase/)                                           │
 │  ├── mysql-container    :3306  MySQL 8.1                            │
-│  ├── phpmyadmin-container :8081  phpMyAdmin 5.2                     │
+│  ├── adminer-container    :8081  Adminer 4.8.1                      │
 │  └── metabase-container :3000  Metabase v0.52                      │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -165,7 +165,7 @@ Metabase connects to MySQL
 | Launcher | `data-handling-scripts/start.py` | Starts Docker stack + all four tools; opens dashboard |
 | Course metadata | `data-handling-scripts/Notes.md` | Hand-maintained per term — maps Canvas IDs to SIS IDs and term codes |
 | Shared parsing | `data-handling-scripts/pipeline.py` | `find_notes()` / `parse_notes_md()`, used by the import tools |
-| Docker stack | `Metabase/docker-compose.yml` | MySQL 8 + phpMyAdmin + Metabase |
+| Docker stack | `Metabase/docker-compose.yml` | MySQL 8 + Adminer + Metabase |
 
 ---
 
@@ -406,7 +406,7 @@ Generates a self-contained SQL file you can import into any other MySQL instance
 **Workflow:**
 1. Check the terms you want to export (the page shows course/enrollment/response counts per term)
 2. Click **Download SQL**
-3. Import the downloaded `.sql` file into the target database via phpMyAdmin or the `mysql` CLI
+3. Import the downloaded `.sql` file into the target database via Adminer or the `mysql` CLI
 
 **What the SQL includes:**
 - `INSERT … ON DUPLICATE KEY UPDATE` for Terms, Courses, People, and Enrollment
@@ -543,7 +543,7 @@ The import tools read `.env` automatically from `../Metabase/.env` relative to t
 | Container | Port | Image | Holds |
 |---|---|---|---|
 | `mysql-container` | 3306 | `mysql:8.1` | Analytics data — `Micro-Surveys`, `SPOTS` |
-| `phpmyadmin-container` | 8081 | `phpmyadmin:5.2.1` | — |
+| `adminer-container` | 8081 | `adminer:4.8.1` | — |
 | `metabase-container` | 3000 | `metabase/metabase:v0.55.12` | — |
 | `metabase-postgres` | — | `postgres:16` | Metabase **application** DB — dashboards, users |
 
@@ -553,15 +553,15 @@ The two databases are easy to confuse and are completely separate. `mysql-contai
 
 ### Production differs from this compose file
 
-The production server (`dbdkr.erau.edu`, reachable on VPN) diverges from `docker-compose.yml` in three ways, none of which the compose file reflects:
+The production server (`dbdkr.erau.edu`, reachable on VPN) diverges from `docker-compose.yml` in three ways:
 
 | Container | Port | Image | Difference |
 |---|---|---|---|
-| `adminer-container` | 8080 | `adminer:4.8.1` | Replaced phpMyAdmin in production — phpMyAdmin was leaking memory. Local dev still gets phpMyAdmin on 8081. |
+| `adminer-container` | 8080 | `adminer:4.8.1` | Port only. Same image as this compose file, which publishes it on **8081** — 8080 is often taken on dev machines. (phpMyAdmin was dropped everywhere after it leaked memory in production.) |
 | `metabase-container` | 3000 | `metabase/metabase:latest` | Unpinned upstream, so a restart can change Metabase versions. The repo pins `v0.55.12`. |
 | *(none)* | — | — | Production's Metabase application DB is still the **H2 file**; this repo runs it on the `metabase-postgres` service. See [Replicating Production Metabase](#replicating-production-metabase). |
 
-Deploying straight from this repo therefore gives you phpMyAdmin on **8081**, not Adminer on **8080**. Anywhere this README says phpMyAdmin/8081, read Adminer/8080 if you are on the production box. The database URLs and credentials are identical either way — only the browser client differs.
+Anywhere this README says Adminer on 8081, read 8080 if you are on the production box. In Adminer, use server `db` (the Compose service name), not `localhost`.
 
 ### MySQL accounts are per source host
 
@@ -609,6 +609,29 @@ If the system is force-restarted while containers are running, MySQL may be left
 cd Metabase
 docker compose down
 docker compose up -d
+```
+
+### Running the tools as services (servers)
+
+`start.py` is for a laptop: it opens a browser and runs the tools until Ctrl+C. On a server, install them as systemd services instead, so they start on boot and restart if they crash:
+
+```bash
+sudo ./ops/install-services.sh              # stop start.py first — it holds the ports
+sudo ./ops/install-services.sh --uninstall
+```
+
+This installs one `microsurvey@<tool>` unit per tool — `dashboard`, `upload_app`, `survey_upload_app`, `export_app` — running as the owner of `Metabase/.env`, who must be in the `docker` group. The Docker stack is not part of it: its containers are `restart: always`, so dockerd restores them on boot.
+
+**Open the firewall — to the LAN only.** Docker's published ports (Metabase, Adminer, MySQL) bypass `ufw`, but these tools run on the host and do not: with `ufw` active, other machines get `ERR_CONNECTION_TIMED_OUT` while every test run *on the server* succeeds, because local connections skip the firewall. The tools have no authentication and write to MySQL as root, so scope the rule to your subnet:
+
+```bash
+sudo ufw allow from 192.168.1.0/24 to any port 5001:5003,5010 proto tcp comment 'MicroSurvey tools (LAN only)'
+```
+
+```bash
+systemctl status 'microsurvey@*'
+journalctl -u 'microsurvey@*' -f
+sudo systemctl restart 'microsurvey@*'      # after pulling code changes
 ```
 
 ---
@@ -717,7 +740,7 @@ AIR-Canvas-MicroSurvey/
 │       build_survey_responses_inserts.py, build_survey_answers_inserts.py
 │
 ├── Metabase/
-│   ├── docker-compose.yml               MySQL 8 + phpMyAdmin + Metabase
+│   ├── docker-compose.yml               MySQL 8 + Adminer + Metabase
 │   ├── .env                             ★ (gitignored) credentials — required; stack will not start without it
 │   ├── env.sample                       Template for .env
 │   └── README.md                        Docker-specific documentation
@@ -727,7 +750,9 @@ AIR-Canvas-MicroSurvey/
 │   ├── extract-database.sh              Pull ONE database out of a multi-database dump
 │   ├── restore-local-mysql.sh           Load a dump into the local container
 │   ├── import-metabase-h2.sh            Load a production H2 app DB (see caveat — local now runs Postgres)
-│   └── backup-metabase-appdb.sh         pg_dump every dashboard, question, and user — no downtime
+│   ├── backup-metabase-appdb.sh         pg_dump every dashboard, question, and user — no downtime
+│   ├── install-services.sh              Run the four web tools as systemd services (servers)
+│   └── systemd/microsurvey@.service     Unit template it installs, one instance per tool
 │
 └── backups/                             ★ (gitignored) dumps land here — real student data, never commit
 ```

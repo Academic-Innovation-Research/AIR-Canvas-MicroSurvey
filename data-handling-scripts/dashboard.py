@@ -73,7 +73,7 @@ def _status() -> dict:
         "enroll":   _port_open(5001),
         "survey":   _port_open(5002),
         "export":   _port_open(5003),
-        "phpmyadmin": _port_open(8081),
+        "adminer":  _port_open(8081),
         "metabase": _port_open(3000),
     }
 
@@ -364,9 +364,9 @@ _HTML = """\
           <line x1="12" y1="17" x2="12" y2="21"/>
         </svg>
       </div>
-      <div class="status-dot" id="dot-phpmyadmin"></div>
+      <div class="status-dot" id="dot-adminer"></div>
     </div>
-    <h2>phpMyAdmin</h2>
+    <h2>Adminer</h2>
     <p>Browse tables, run queries, and inspect the Micro-Surveys database directly in the browser.</p>
     <div class="card-footer">
       <span class="port-badge">:8081</span>
@@ -442,7 +442,7 @@ async function refresh() {
       'dot-enroll':     s.enroll,
       'dot-survey':     s.survey,
       'dot-export':     s.export,
-      'dot-phpmyadmin': s.phpmyadmin,
+      'dot-adminer':    s.adminer,
       'dot-metabase':   s.metabase,
     };
     for (const [id, up] of Object.entries(map)) {

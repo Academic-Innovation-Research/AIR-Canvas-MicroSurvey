@@ -1,4 +1,4 @@
-# Metabase with MySQL & PHPMyAdmin
+# Metabase with MySQL & Adminer
 
 ## About
 This document does not explain how to use Metabase, please refer to the official documentation for usage instructions.
@@ -7,7 +7,8 @@ The Compose uses the following images:
 
 + [Metabase](https://hub.docker.com/r/metabase/metabase)
 + [MySQL](https://hub.docker.com/_/mysql)
-+ [PHPMyAdmin](https://hub.docker.com/_/phpmyadmin)
++ [Adminer](https://hub.docker.com/_/adminer)
++ [PostgreSQL](https://hub.docker.com/_/postgres) — Metabase's application database
 
 
 ### Requirements
@@ -39,9 +40,9 @@ Container configurations depend on environment variables defined in an `.env` fi
 
 ### Log In
 + [Metabase](http://localhost:3000/)
-+ [PHPMyAdmin](http://localhost:8081/)
++ [Adminer](http://localhost:8081/) — server `db`
 
-> **Production runs Adminer on 8080, not phpMyAdmin on 8081.** phpMyAdmin was removed from `dbdkr.erau.edu` for leaking memory and replaced with `adminer:4.8.1`. This compose file was never updated to match, so a deploy from this repo brings up phpMyAdmin.
+> **Production serves Adminer on 8080; this compose file uses 8081.** Same `adminer:4.8.1` image. phpMyAdmin was dropped after it leaked memory in production.
 
 
 ### Login fails with "Access denied for user 'root'@'&lt;ip&gt;'"
