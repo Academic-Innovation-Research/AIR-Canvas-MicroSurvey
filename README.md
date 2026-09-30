@@ -542,10 +542,12 @@ The import tools read `.env` automatically from `../Metabase/.env` relative to t
 
 | Container | Port | Image | Holds |
 |---|---|---|---|
-| `mysql-container` | 3306 | `mysql:8.1` | Analytics data — `Micro-Surveys`, `SPOTS` |
+| `mysql-container` | 3306 (host loopback only) | `mysql:8.1` | Analytics data — `Micro-Surveys`, `SPOTS` |
 | `adminer-container` | 8081 | `adminer:4.8.1` | — |
 | `metabase-container` | 3000 | `metabase/metabase:v0.55.12` | — |
 | `metabase-postgres` | — | `postgres:16` | Metabase **application** DB — dashboards, users |
+
+MySQL is published on `127.0.0.1` only. Metabase and Adminer reach it over the Docker network, and the import tools use `docker exec`, so nothing needs 3306 from another machine. To use a desktop client (TablePlus, DBeaver, Workbench) against a server, connect over an SSH tunnel: SSH to the server, then database host `127.0.0.1`, port `3306`.
 
 The two databases are easy to confuse and are completely separate. `mysql-container` holds the data Metabase *queries*. `metabase-postgres` holds Metabase itself — dashboards, questions, collections, users, permissions. Losing the first costs you a re-import; losing the second costs you every dashboard ever built.
 
