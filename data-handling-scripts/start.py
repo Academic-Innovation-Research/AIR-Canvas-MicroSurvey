@@ -8,7 +8,7 @@ Usage:
 
 What it does:
   1. Checks that Docker is running (prompts you to start it if not)
-  2. Starts the Metabase Docker stack (MySQL + phpMyAdmin + Metabase)
+  2. Starts the Metabase Docker stack (MySQL + Adminer + Metabase)
   3. Waits for MySQL to accept connections
   4. Opens the dashboard in your browser:
        http://localhost:5010  — Dashboard (links to all tools)
@@ -125,7 +125,7 @@ def main():
     print(f"  Enrollment Import : {URL_ENROLL}")
     print(f"  Survey Import     : {URL_SURVEY}")
     print(f"  SQL Export        : {URL_EXPORT}")
-    print(f"  phpMyAdmin        : http://localhost:8081")
+    print(f"  Adminer           : http://localhost:8081")
     print(f"  Metabase          : http://localhost:3000")
 
     # 0. Credentials. Without .env, compose substitutes blank strings for every
@@ -151,7 +151,7 @@ def main():
         print("  Docker is running. ✔")
 
     # 2. Docker stack
-    print("\n[2/4] Starting Docker stack (MySQL + phpMyAdmin + Metabase)…")
+    print("\n[2/4] Starting Docker stack (MySQL + Adminer + Metabase)…")
     print("  First run pulls three images — this can take several minutes.")
     # Output is streamed, not captured, so pull progress is visible while waiting.
     for compose_cmd in (["docker", "compose"], ["docker-compose"]):

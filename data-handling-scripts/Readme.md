@@ -212,7 +212,7 @@ Before importing any data into a fresh database, run `schema-setup.sql` once:
 docker exec -i metabase-mysql-1 mysql -u root -p"$MYSQL_ROOT_PASSWORD" Micro-Surveys < schema-setup.sql
 ```
 
-Or import it via phpMyAdmin. This creates the `UNIQUE INDEX` on `People(EMPL_ID)` that makes re-imports idempotent. It is safe to re-run — it uses `IF NOT EXISTS`.
+Or import it via Adminer. This creates the `UNIQUE INDEX` on `People(EMPL_ID)` that makes re-imports idempotent. It is safe to re-run — it uses `IF NOT EXISTS`.
 
 ### Routine imports
 
@@ -224,7 +224,7 @@ Import the SQL files **in dependency order**:
 4. `sql/survey_responses_inserts.sql`
 5. `sql/survey_answers_inserts.sql`
 
-You can use phpMyAdmin, the `mysql` CLI, or any SQL client. Review SQL before executing.
+You can use Adminer, the `mysql` CLI, or any SQL client. Review SQL before executing.
 
 ---
 
