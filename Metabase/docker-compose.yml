@@ -3,7 +3,6 @@ services:
     image: mysql:8.1
     container_name: mysql-container
     restart: always
-    platform: linux/arm64
     volumes:
       - db-data:/var/lib/mysql
     environment:
@@ -40,7 +39,6 @@ services:
       - "8081:80"
     networks:
       - app-network
-    platform: linux/arm64
 
   # Metabase's APPLICATION database — dashboards, questions, users, permissions.
   # Distinct from `db` above, which holds the analytics data Metabase queries.

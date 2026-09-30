@@ -36,7 +36,7 @@ OUT="${3:-$(dirname "$SRC")/${DB}-only-$(date -u +%Y%m%dT%H%M%SZ).sql.gz}"
 
 # Decompress once to a temp file — the source is scanned several times and
 # re-running gunzip per pass is wasteful on large dumps.
-TMP=$(mktemp -t extractdb)
+TMP=$(mktemp "${TMPDIR:-/tmp}/extractdb.XXXXXX")
 cleanup() { rm -f "$TMP"; }
 trap cleanup EXIT
 

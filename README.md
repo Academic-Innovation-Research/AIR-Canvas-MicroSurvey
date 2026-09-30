@@ -542,7 +542,7 @@ The import tools read `.env` automatically from `../Metabase/.env` relative to t
 
 | Container | Port | Image | Holds |
 |---|---|---|---|
-| `mysql-container` | 3306 | `mysql:8.1` (arm64) | Analytics data — `Micro-Surveys`, `SPOTS` |
+| `mysql-container` | 3306 | `mysql:8.1` | Analytics data — `Micro-Surveys`, `SPOTS` |
 | `phpmyadmin-container` | 8081 | `phpmyadmin:5.2.1` | — |
 | `metabase-container` | 3000 | `metabase/metabase:v0.55.12` | — |
 | `metabase-postgres` | — | `postgres:16` | Metabase **application** DB — dashboards, users |
