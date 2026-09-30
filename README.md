@@ -622,6 +622,12 @@ sudo ./ops/install-services.sh --uninstall
 
 This installs one `microsurvey@<tool>` unit per tool — `dashboard`, `upload_app`, `survey_upload_app`, `export_app` — running as the owner of `Metabase/.env`, who must be in the `docker` group. The Docker stack is not part of it: its containers are `restart: always`, so dockerd restores them on boot.
 
+**Open the firewall — to the LAN only.** Docker's published ports (Metabase, Adminer, MySQL) bypass `ufw`, but these tools run on the host and do not: with `ufw` active, other machines get `ERR_CONNECTION_TIMED_OUT` while every test run *on the server* succeeds, because local connections skip the firewall. The tools have no authentication and write to MySQL as root, so scope the rule to your subnet:
+
+```bash
+sudo ufw allow from 192.168.1.0/24 to any port 5001:5003,5010 proto tcp comment 'MicroSurvey tools (LAN only)'
+```
+
 ```bash
 systemctl status 'microsurvey@*'
 journalctl -u 'microsurvey@*' -f

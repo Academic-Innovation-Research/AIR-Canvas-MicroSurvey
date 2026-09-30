@@ -58,3 +58,13 @@ systemctl --no-pager --lines=0 status "microsurvey@*" | grep -E "●|Active:"
 echo
 echo "✔  Installed for $RUN_AS from $REPO"
 echo "   Logs: journalctl -u 'microsurvey@*' -f"
+
+# The tools run on the host, so unlike Docker's published ports (which bypass
+# ufw) they are subject to it. Without a rule, other machines time out while
+# every test run on this box passes. Not opened automatically: the tools have
+# no auth and write as MySQL root, so the source range is a deliberate choice.
+if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then
+  echo
+  echo "⚠  ufw is active and will block other machines. Open the ports to your LAN only, e.g.:"
+  echo "   sudo ufw allow from 192.168.1.0/24 to any port 5001:5003,5010 proto tcp comment 'MicroSurvey tools (LAN only)'"
+fi
