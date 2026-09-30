@@ -40,6 +40,10 @@ if ! id -nG "$RUN_AS" | grep -qw docker; then
   exit 1
 fi
 
+# Re-running reinstalls: stop our own instances first, or the check below
+# would find them holding the ports and refuse.
+for t in "${TOOLS[@]}"; do systemctl stop "microsurvey@$t" 2>/dev/null || true; done
+
 # A start.py left running holds the ports and the services would crash-loop.
 for port in 5010 5001 5002 5003; do
   if ss -ltnH "sport = :$port" | grep -q .; then
