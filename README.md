@@ -611,6 +611,23 @@ docker compose down
 docker compose up -d
 ```
 
+### Running the tools as services (servers)
+
+`start.py` is for a laptop: it opens a browser and runs the tools until Ctrl+C. On a server, install them as systemd services instead, so they start on boot and restart if they crash:
+
+```bash
+sudo ./ops/install-services.sh              # stop start.py first — it holds the ports
+sudo ./ops/install-services.sh --uninstall
+```
+
+This installs one `microsurvey@<tool>` unit per tool — `dashboard`, `upload_app`, `survey_upload_app`, `export_app` — running as the owner of `Metabase/.env`, who must be in the `docker` group. The Docker stack is not part of it: its containers are `restart: always`, so dockerd restores them on boot.
+
+```bash
+systemctl status 'microsurvey@*'
+journalctl -u 'microsurvey@*' -f
+sudo systemctl restart 'microsurvey@*'      # after pulling code changes
+```
+
 ---
 
 ## Superseded: the numbered CLI scripts
@@ -727,7 +744,9 @@ AIR-Canvas-MicroSurvey/
 │   ├── extract-database.sh              Pull ONE database out of a multi-database dump
 │   ├── restore-local-mysql.sh           Load a dump into the local container
 │   ├── import-metabase-h2.sh            Load a production H2 app DB (see caveat — local now runs Postgres)
-│   └── backup-metabase-appdb.sh         pg_dump every dashboard, question, and user — no downtime
+│   ├── backup-metabase-appdb.sh         pg_dump every dashboard, question, and user — no downtime
+│   ├── install-services.sh              Run the four web tools as systemd services (servers)
+│   └── systemd/microsurvey@.service     Unit template it installs, one instance per tool
 │
 └── backups/                             ★ (gitignored) dumps land here — real student data, never commit
 ```
