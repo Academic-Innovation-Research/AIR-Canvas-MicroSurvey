@@ -565,6 +565,10 @@ The production server (`dbdkr.erau.edu`, reachable on VPN) diverges from `docker
 
 Anywhere this README says Adminer on 8081, read 8080 if you are on the production box. In Adminer, use server `db` (the Compose service name), not `localhost`.
 
+#### Browser says `DNS_PROBE_STARTED` / "DNS address could not be found"
+
+If `http://dbdkr.erau.edu:3000/` fails with a DNS error while you are on the VPN, but `http://155.31.206.49:3000/` loads, the server is fine — the browser is bypassing your system resolver. Chrome's **Use secure DNS** (Settings → Privacy and security → Security) sends lookups to a public DNS-over-HTTPS provider that does not return this record. Turn it off, or set it to **With your current service provider**, then clear `chrome://net-internals/#dns`. To confirm, `nslookup dbdkr.erau.edu` from a terminal should return `155.31.206.49`; if that fails too, the problem is the VPN's DNS, not the browser.
+
 ### MySQL accounts are per source host
 
 `root@'%'`, `root@'localhost'`, and `root@'<literal-ip>'` are **separate accounts with separate passwords**, and MySQL authenticates against the most specific host match. Two consequences worth internalising before debugging any login failure:
