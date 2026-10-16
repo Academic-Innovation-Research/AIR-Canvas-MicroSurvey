@@ -16,6 +16,7 @@ Metabase/metabase.db.mv.db.*
 
 # Data pipeline — local working files with real institutional data
 data-handling-scripts/Notes.md
+data-handling-scripts/Notes.md.bak
 data-handling-scripts/notes.txt
 data-handling-scripts/courses.csv
 data-handling-scripts/courses_enriched.csv

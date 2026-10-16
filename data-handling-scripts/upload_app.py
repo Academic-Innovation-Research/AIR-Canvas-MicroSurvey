@@ -370,13 +370,18 @@ fetch('/db-status').then(r=>r.json()).then(d=>{
     : `MySQL unavailable: ${d.error}`;
 }).catch(()=>{ document.getElementById('db-lbl').textContent='Could not check MySQL'; });
 
-fetch('/notes-status').then(r=>r.json()).then(d=>{
-  document.getElementById('notes-dot').className='dot '+(d.found?(d.count>0?'ok':'warn'):'err');
-  document.getElementById('notes-lbl').textContent = d.found
-    ? `Notes.md found — ${d.count} course(s) indexed`
-    : 'Notes.md not found in script directory — Courses/Enrollment tables will be skipped';
-  notesIndex = d.index || {};
-}).catch(()=>{ document.getElementById('notes-lbl').textContent='Could not read Notes.md status'; });
+// Re-read on every drop, not just page load: Notes.md is often saved from the
+// Dashboard while this tab is already open.
+function loadNotes(){
+  return fetch('/notes-status').then(r=>r.json()).then(d=>{
+    document.getElementById('notes-dot').className='dot '+(d.found?(d.count>0?'ok':'warn'):'err');
+    document.getElementById('notes-lbl').textContent = d.found
+      ? `Notes.md found — ${d.count} course(s) indexed`
+      : 'Notes.md not found in script directory — Courses/Enrollment tables will be skipped';
+    notesIndex = d.index || {};
+  }).catch(()=>{ document.getElementById('notes-lbl').textContent='Could not read Notes.md status'; });
+}
+loadNotes();
 
 fetch('/enrollment-status').then(r=>r.json()).then(d=>{
   enrollmentCounts = d.counts || {};
@@ -391,7 +396,8 @@ finput.addEventListener('change',()=>{ addFiles(Array.from(finput.files)); finpu
 function stemOf(n){ return n.replace(/\.[^/.]+$/, ''); }
 function cidFrom(n){ const m=stemOf(n).match(/(?<!\d)(\d{4,})(?!\d)/); return m?parseInt(m[1]):null; }
 
-function addFiles(incoming){
+async function addFiles(incoming){
+  await loadNotes();
   incoming.filter(f=>f.name.match(/\.csv$/i)).forEach(f=>{
     if(!files.find(e=>e.file.name===f.name))
       files.push({ file:f, cid:cidFrom(f.name) });
