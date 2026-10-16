@@ -14,9 +14,12 @@ import json
 import os
 import socket
 import subprocess
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import Dict
+
+from pipeline import find_notes, format_notes_md, parse_notes_text
 
 # ── Config ─────────────────────────────────────────────────────────────────────
 
@@ -76,6 +79,42 @@ def _status() -> dict:
         "adminer":  _port_open(8081),
         "metabase": _port_open(3000),
     }
+
+# ── Term notes (Notes.md) ──────────────────────────────────────────────────────
+
+NOTES_PATH     = _HERE / "Notes.md"
+MAX_NOTE_BYTES = 200_000
+
+
+def _notes_summary(courses: dict) -> dict:
+    return {
+        "count":      len(courses),
+        "term_codes": sorted({c["term_code"] for c in courses.values()}),
+        "courses":    [{k: c[k] for k in ("canvas_id", "course_name", "label", "sis_id", "term_code")}
+                       for c in courses.values()],
+    }
+
+
+def _current_notes() -> dict:
+    path = find_notes(_HERE)
+    text = path.read_text(encoding="utf-8") if path.exists() else ""
+    return {"file": path.name if path.exists() else None,
+            **_notes_summary(parse_notes_text(text))}
+
+
+def _save_notes(text: str) -> dict:
+    """Parse a pasted note and write it as Notes.md, keeping the old one as Notes.md.bak."""
+    courses = parse_notes_text(text)
+    if not courses:
+        return {"ok": False, "error": "No courses found. Each course needs a Canvas course link "
+                                      "and a SIS ID, with a blank line between courses."}
+    summary = _notes_summary(courses)
+    if NOTES_PATH.exists():
+        NOTES_PATH.replace(NOTES_PATH.with_suffix(".md.bak"))
+    header = (f"Notes.md — term {', '.join(summary['term_codes'])}, "
+              f"saved from the Dashboard {datetime.now():%Y-%m-%d %H:%M}")
+    NOTES_PATH.write_text(format_notes_md(courses, header), encoding="utf-8")
+    return {"ok": True, "file": NOTES_PATH.name, **summary}
 
 # ── HTML ───────────────────────────────────────────────────────────────────────
 
@@ -234,6 +273,44 @@ _HTML = """\
   }
   .open-btn.secondary:hover { background: #2a2d3f; }
 
+  /* ── Term setup ── */
+  .setup {
+    max-width: 900px;
+    margin: 0 auto 36px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px;
+  }
+  .setup h2 { font-size: 0.97rem; font-weight: 700; margin-bottom: 6px; }
+  .setup > p { font-size: 0.83rem; color: var(--muted); line-height: 1.5; margin-bottom: 14px; }
+  .setup .current { font-size: 0.83rem; margin-bottom: 14px; }
+  .setup .current b { color: var(--text); }
+  .setup textarea {
+    width: 100%;
+    min-height: 180px;
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    font-family: "SF Mono", "Fira Mono", monospace;
+    font-size: 0.8rem;
+    resize: vertical;
+  }
+  .setup textarea:focus { outline: none; border-color: var(--accent); }
+  .setup .actions { display: flex; gap: 10px; align-items: center; margin-top: 12px; flex-wrap: wrap; }
+  .setup .open-btn:disabled { opacity: .45; cursor: default; }
+  .setup .msg { font-size: 0.83rem; color: var(--muted); }
+  .setup .msg.ok   { color: var(--green); }
+  .setup .msg.warn { color: var(--amber); }
+  .setup .msg.err  { color: var(--red); }
+  .setup table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 0.8rem; }
+  .setup th, .setup td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); }
+  .setup th { color: var(--muted); font-weight: 600; }
+  .setup td.mono { font-family: "SF Mono", "Fira Mono", monospace; font-size: 0.75rem; }
+  .setup .table-wrap { overflow-x: auto; }
+
   /* ── Footer ── */
   footer {
     max-width: 900px;
@@ -264,6 +341,24 @@ _HTML = """\
     <span id="db-label">Checking database…</span>
   </div>
 </header>
+
+<div class="section-label">Term Setup</div>
+
+<div class="setup">
+  <h2>Paste Term Note</h2>
+  <p>Paste the whole deployment note for the new term. Course blocks (title, instructor, SIS ID,
+     Canvas link) are picked out and everything else is ignored. Saving replaces <code>Notes.md</code>,
+     which the Enrollment Import uses to match roster CSVs; the previous file is kept as
+     <code>Notes.md.bak</code>.</p>
+  <div class="current" id="notes-current">Loading current Notes.md…</div>
+  <textarea id="note-text" placeholder="Paste the note here…" spellcheck="false"></textarea>
+  <div class="actions">
+    <button class="open-btn secondary" id="btn-preview">Preview</button>
+    <button class="open-btn" id="btn-save" disabled>Save as current term</button>
+    <span class="msg" id="note-msg"></span>
+  </div>
+  <div class="table-wrap" id="note-table"></div>
+</div>
 
 <div class="section-label">Import Tools</div>
 
@@ -456,6 +551,69 @@ async function refresh() {
 
 refresh();
 setInterval(refresh, 15000);
+
+// ── Term setup ──
+const noteText = document.getElementById('note-text');
+const btnSave  = document.getElementById('btn-save');
+const noteMsg  = document.getElementById('note-msg');
+const noteTbl  = document.getElementById('note-table');
+
+function esc(s) {
+  return String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+
+function setMsg(text, cls) { noteMsg.textContent = text; noteMsg.className = 'msg ' + (cls || ''); }
+
+function renderCourses(d) {
+  if (!d.courses || !d.courses.length) { noteTbl.innerHTML = ''; return; }
+  noteTbl.innerHTML = '<table><tr><th>#</th><th>Course</th><th>Canvas ID</th><th>SIS ID</th></tr>' +
+    d.courses.map((c, i) => `<tr><td>${i + 1}</td><td>${esc(c.label || c.course_name)}</td>` +
+      `<td class="mono">${esc(c.canvas_id)}</td><td class="mono">${esc(c.sis_id)}</td></tr>`).join('') +
+    '</table>';
+}
+
+function describe(d) {
+  const terms = d.term_codes.join(', ');
+  return `${d.count} course(s), term ${terms}`;
+}
+
+async function loadCurrent() {
+  const el = document.getElementById('notes-current');
+  try {
+    const d = await (await fetch('/notes')).json();
+    if (!d.file) { el.innerHTML = '<span style="color:var(--red)">No Notes.md yet.</span>'; return; }
+    const stale = d.file !== 'Notes.md'
+      ? ' <span style="color:var(--amber)">(fallback example file, not your term)</span>' : '';
+    el.innerHTML = `Current: <b>${esc(d.file)}</b>, ${esc(describe(d))}${stale}`;
+  } catch (e) { el.textContent = 'Could not read current Notes.md'; }
+}
+
+async function post(path) {
+  const r = await fetch(path, {method: 'POST', headers: {'Content-Type': 'application/json'},
+                               body: JSON.stringify({text: noteText.value})});
+  return r.json();
+}
+
+document.getElementById('btn-preview').onclick = async () => {
+  const d = await post('/notes/preview');
+  renderCourses(d);
+  if (!d.count) { btnSave.disabled = true; setMsg('No courses found in the note.', 'err'); return; }
+  btnSave.disabled = false;
+  setMsg(`Found ${describe(d)}` + (d.term_codes.length > 1 ? '. Warning: more than one term code.' : ''),
+         d.term_codes.length > 1 ? 'warn' : 'ok');
+};
+
+btnSave.onclick = async () => {
+  btnSave.disabled = true;
+  const d = await post('/notes/save');
+  if (!d.ok) { setMsg(d.error || 'Save failed', 'err'); return; }
+  renderCourses(d);
+  setMsg(`Saved ${describe(d)}. Next: export rosters and open Canvas Enrollment Import.`, 'ok');
+  loadCurrent();
+};
+
+noteText.addEventListener('input', () => { btnSave.disabled = true; });
+loadCurrent();
 </script>
 </body>
 </html>
@@ -490,6 +648,26 @@ class DashboardHandler(BaseHTTPRequestHandler):
             self._send_html(_HTML)
         elif path == "/status":
             self._send_json(_status())
+        elif path == "/notes":
+            self._send_json(_current_notes())
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def do_POST(self) -> None:
+        length = int(self.headers.get("Content-Length", 0))
+        if length > MAX_NOTE_BYTES:
+            self._send_json({"ok": False, "error": "Note is too large"})
+            return
+        try:
+            text = json.loads(self.rfile.read(length) or b"{}").get("text", "")
+        except (ValueError, AttributeError):
+            self._send_json({"ok": False, "error": "Bad request"})
+            return
+        if self.path == "/notes/preview":
+            self._send_json(_notes_summary(parse_notes_text(text)))
+        elif self.path == "/notes/save":
+            self._send_json(_save_notes(text))
         else:
             self.send_response(404)
             self.end_headers()

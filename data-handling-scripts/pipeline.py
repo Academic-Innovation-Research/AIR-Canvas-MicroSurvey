@@ -55,13 +55,16 @@ def _course_name_from_sis(sis: str) -> str:
     return segs[2] if len(segs) >= 3 else sis
 
 
-def parse_notes_md(path: Path) -> Dict[int, Dict]:
+def parse_notes_text(text: str) -> Dict[int, Dict]:
     """
-    Return {canvas_id: {canvas_id, sis_id, url, term_code, course_name}}
-    for every course entry in the file.
+    Return {canvas_id: {canvas_id, sis_id, url, term_code, course_name, label}}
+    for every course entry in the text.
 
     Entries must be separated by blank lines. Within each block the URL
-    and SIS ID can appear in any order; description lines are ignored.
+    and SIS ID can appear in any order; any other lines (course title,
+    instructor) are kept as `label` but otherwise ignored, and blocks with
+    no URL + SIS pair (ticket prose, greetings) are skipped. That makes a
+    whole deployment-request note safe to paste in as-is.
 
     Supported formats:
 
@@ -73,19 +76,17 @@ def parse_notes_md(path: Path) -> Dict[int, Dict]:
         2963_S3_ECON_211_2382668A_W411
         https://erau.instructure.com/courses/201288/
 
-        # Human-readable (description line is ignored):
+        # Human-readable (description lines become the label):
         1) ECON 211 - Jack Patel
         https://erau.instructure.com/courses/201288/
         2963_S3_ECON_211_2382668A_W411
     """
     courses: Dict[int, Dict] = {}
-    if not path.exists():
-        return courses
-    text = path.read_text(encoding="utf-8").strip()
-    for block in re.split(r"\n\s*\n", text):
+    for block in re.split(r"\n\s*\n", text.strip()):
         url: Optional[str] = None
         canvas_id: Optional[int] = None
         sis: Optional[str] = None
+        other: List[str] = []
         for line in block.splitlines():
             line = line.strip()
             if not line:
@@ -94,8 +95,10 @@ def parse_notes_md(path: Path) -> Dict[int, Dict]:
             if m and canvas_id is None:
                 canvas_id = int(m.group(1))
                 url = line.rstrip("/")
-            if _looks_like_sis(line) and sis is None:
+            elif _looks_like_sis(line) and sis is None:
                 sis = line
+            elif not line.startswith("#"):
+                other.append(line)
         if url and sis and canvas_id:
             tc = sis.split("_", 1)[0]
             courses[canvas_id] = {
@@ -104,8 +107,26 @@ def parse_notes_md(path: Path) -> Dict[int, Dict]:
                 "url":         url,
                 "term_code":   tc,
                 "course_name": _course_name_from_sis(sis),
+                "label":       " - ".join(other),
             }
     return courses
+
+
+def parse_notes_md(path: Path) -> Dict[int, Dict]:
+    """parse_notes_text() over a file; {} if the file does not exist."""
+    if not path.exists():
+        return {}
+    return parse_notes_text(path.read_text(encoding="utf-8"))
+
+
+def format_notes_md(courses: Dict[int, Dict], header: str = "") -> str:
+    """Render parsed courses back into the canonical Notes.md layout."""
+    out = [f"# {header}", ""] if header else []
+    for c in courses.values():
+        if c.get("label"):
+            out.append(c["label"])
+        out += [c["url"] + "/", c["sis_id"], ""]
+    return "\n".join(out)
 
 
 # ── Roster CSV ─────────────────────────────────────────────────────────────────

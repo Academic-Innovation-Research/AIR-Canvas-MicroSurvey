@@ -40,11 +40,15 @@ On the very first run this pulls four Docker images (MySQL, Adminer, Metabase, P
 
 ## Running a New Micro-Survey
 
-The full per-term procedure. Steps 3–6 are browser-only; **step 1 is the single manual file edit in the whole process**, and it is the step most likely to be forgotten between terms.
+The full per-term procedure. Every step runs in the browser. **Step 1 is the one most likely to be forgotten between terms**: if you skip it, the rosters won't match any course.
 
-### 1. Update `Notes.md` — the only non-browser step
+### 1. Load the term's courses into `Notes.md`
 
-`data-handling-scripts/Notes.md` maps each Canvas course ID to its SIS ID and term code. It is gitignored, so it does **not** exist in a fresh clone, and it still contains the *previous* term's courses if you last used it a term ago. Edit it before anything else. Format is in [Notes.md Format](#notesmd-format).
+`data-handling-scripts/Notes.md` maps each Canvas course ID to its SIS ID and term code. It is gitignored, so it does **not** exist in a fresh clone, and it still contains the *previous* term's courses if you last used it a term ago. Replace it before anything else.
+
+Use the **Paste Term Note** box at the top of the Dashboard (localhost:5010). Paste the whole deployment-request note into it, click **Preview** to check the course list and term code, then click **Save as current term**. Course blocks are picked out and the ticket text around them is ignored. The file is rewritten in canonical form, and the previous one is kept as `Notes.md.bak`. The line above the box shows which file the tools are reading right now, and warns if it is the `Notes-src.md` fallback. Editing the file by hand still works; the format is in [Notes.md Format](#notesmd-format).
+
+Check that the term code in the preview is the one you expect. The month in the ticket text is never used, and it has been wrong before: the 3011 note first said July when 3011 is October 2026.
 
 > **⚠ The stale-fallback trap.** If `Notes.md` is missing, the tools silently fall back to the committed `Notes-src.md` (see `pipeline.py:27` `find_notes`). The Enrollment Import page will still show a green status line reading *"Notes.md found — 14 course(s) indexed"* — but those are the **example courses from term 2943**, not yours. A green indicator is not confirmation that your courses are loaded. Always check that the course names on the file badges are the ones you expect.
 
@@ -340,7 +344,7 @@ They are leftovers from a superseded import strategy. Nothing in the current too
 
 ### Dashboard — localhost:5010
 
-The Dashboard is the single entry point opened automatically by `start.py`. It shows live status indicators for all tools and the database connection, and provides direct links to each tool. You do not need to remember any other URLs.
+The Dashboard is the single entry point opened automatically by `start.py`. It shows live status indicators for all tools and the database connection, and provides direct links to each tool. You do not need to remember any other URLs. Its **Paste Term Note** box writes `Notes.md` from a pasted deployment note (see [Running a New Micro-Survey](#running-a-new-micro-survey), step 1).
 
 ---
 
@@ -352,7 +356,7 @@ Handles: **Terms → Courses → People → Enrollment**
 - `Notes.md` in `data-handling-scripts/` or `data-handling-scripts/Enrollment/` (see format below), **updated for the current term**
 - Canvas roster CSVs exported via the bookmarklet, named `<CanvasID>.csv`
 
-The page shows a `Notes.md` status line on load, served by the `/notes-status` route (`upload_app.py:540`). Read it as *"some notes file was found and N courses were indexed"* — it does not distinguish your `Notes.md` from the `Notes-src.md` fallback, so it can report a confident green count for last term's courses. The per-file badges in step 2 are the real check.
+The page shows a `Notes.md` status line, served by the `/notes-status` route. The page fetches it again on every file drop, so a tab opened before Notes.md was saved still gets the new course list. Read the line as *"some notes file was found and N courses were indexed"* — it does not distinguish your `Notes.md` from the `Notes-src.md` fallback, so it can report a confident green count for last term's courses. The per-file badges in step 2 are the real check.
 
 **Workflow:**
 1. Drop one or more roster CSVs onto the drop zone (multiple files at once is fine)
@@ -475,7 +479,7 @@ javascript:(async()=>{const S=ms=>new Promise(r=>setTimeout(r,ms));try{const T=(
 
 `Notes.md` tells the enrollment import tool how to fill the `Courses` and `Terms` tables. The file is gitignored — copy `Notes-src.md` as a starting point.
 
-This is the one file you maintain by hand each term. There is no editor for it in the Dashboard or the Enrollment Import page; both only read it.
+It changes every term. The usual way to write it is the Dashboard's **Paste Term Note** box (see [Running a New Micro-Survey](#running-a-new-micro-survey), step 1), which accepts the whole deployment-request ticket as-is. You can also edit the file by hand.
 
 **Where to save it** (checked in this order — `find_notes` in `pipeline.py:27`):
 1. `data-handling-scripts/Notes.md`
@@ -484,7 +488,7 @@ This is the one file you maintain by hand each term. There is no editor for it i
 
 Because of entry 3, a missing `Notes.md` never produces an error. It produces a successful-looking import of the wrong courses. Create `Notes.md` explicitly rather than relying on the fallback.
 
-**Format** — separate entries with a blank line; URL and SIS ID can appear in either order; a human-readable description line is ignored:
+**Format** — separate entries with a blank line; URL and SIS ID can appear in either order. Other lines in an entry, such as the course title or instructor, are kept as a label for the Dashboard preview and are otherwise ignored. Blocks without both a URL and a SIS ID, such as ticket prose, are skipped. Parsing is `parse_notes_text` in `pipeline.py`:
 
 ```
 https://erau.instructure.com/courses/201288/
