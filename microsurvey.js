@@ -11,10 +11,10 @@
   var popCrs = 1; 
   
   // Message to display inside popup div
-  var popMsg = "Share Your Thoughts";
+  var popMsg = "We\'d love your feedback!<br/>Answer 3 questions?";
   
   // Link to survey, form, mailto, etc.
-  var surveyURL = "https://erau.qualtrics.com/jfe/form/SV_7VOlXPhXxcfCU2q";
+  var surveyURL = "https://erau.qualtrics.com/jfe/form/SV_bqqtaK21xlvOuCW";
   
   // Text displayed on popup button linking out
   var popBtnTxt = "Yes";
@@ -32,7 +32,7 @@
   var popDelay = 1000;
   
   // Display popup throughout course or just specific pages (0=specific pages, 1=home page only)
-  var popWhere = 0;
+  var popWhere = 1;
   
   // DON'T CHANGE ITEMS BELOW THIS LINE
   //-----------------------------------
