@@ -39,7 +39,7 @@
   
   // Function to show popup
   var popShow = function() {
-    var { pathname } = window.location;
+    var pathname = window.location.pathname.replace(/\/$/, '');
     
     // HTML to display
     var popHTML = "";
@@ -52,7 +52,7 @@
     var showOnPage = false;
     if (popWhere === 1) {
       // Show only on course home page
-      showOnPage = pathname.match(/^\/courses\/\d+$/);
+      showOnPage = pathname.match(/^\/courses\/\d+\/?$/);
     } else {
       // Show on course home, modules, pages, assignments, syllabus, announcements, discussions
       showOnPage = pathname.match(/^\/courses\/\d+(?:\/(?:modules|pages|assignments|syllabus|announcements|discussion_topics)(?:\/.+)?)?$/);
